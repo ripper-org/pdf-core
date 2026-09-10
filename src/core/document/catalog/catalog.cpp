@@ -11,7 +11,7 @@ catalog::catalog(indirect_object& obj) noexcept : object_view(obj) {}
 
 class pages catalog::pages()
 {
-    auto* d = obj().dictionary();
+    auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw parse_exception{"Catalog content is not a dictionary"};
 
@@ -26,7 +26,7 @@ class pages catalog::pages()
 
 indirect_reference catalog::root_pages_indirect_reference()
 {
-    auto* d = obj().dictionary();
+    auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw parse_exception{"Catalog content is not a dictionary"};
 

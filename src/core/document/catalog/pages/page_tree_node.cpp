@@ -18,7 +18,7 @@ page_tree_node::page_tree_node(indirect_object& obj) noexcept : object_view(obj)
 
 bool page_tree_node::is_leaf() const
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return false;
 
@@ -34,7 +34,7 @@ bool page_tree_node::is_root() const
 
 std::optional<page_tree_node> page_tree_node::parent()
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return std::nullopt;
 
@@ -51,7 +51,7 @@ std::optional<page_tree_node> page_tree_node::parent()
 
 std::vector<page_tree_node> page_tree_node::children()
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return {};
 
@@ -82,7 +82,7 @@ void page_tree_node::remove_child(const indirect_reference& ref)
 {
     rebind_to_active_revision();
 
-    auto* d = obj().dictionary();
+    auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Page tree node content is not a dictionary"};
 
@@ -103,7 +103,7 @@ void page_tree_node::remove_child(const indirect_reference& ref)
 
 std::optional<class pages> page_tree_node::as_pages()
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return std::nullopt;
 
@@ -116,7 +116,7 @@ std::optional<class pages> page_tree_node::as_pages()
 
 std::optional<class page> page_tree_node::as_page()
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return std::nullopt;
 
@@ -129,7 +129,7 @@ std::optional<class page> page_tree_node::as_page()
 
 std::uint64_t page_tree_node::subtree_count() const
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Page tree node content is not a dictionary"};
 

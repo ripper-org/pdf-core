@@ -13,7 +13,7 @@ namespace ripper::pdf::core
 ///
 /// Tracks the encoding, the form used in the source (literal or hex),
 /// the decoded byte payload, and the original raw bytes read from the file.
-/// This enables lossless re-serialization — a hex string stays a hex string,
+/// This enables lossless re-serialization: a hex string stays a hex string,
 /// BOM-prefixed UTF-16BE strings are re-emitted with the BOM intact.
 class string_object
 {

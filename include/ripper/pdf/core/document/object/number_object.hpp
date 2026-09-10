@@ -9,7 +9,7 @@
 namespace ripper::pdf::core
 {
 
-/// Represents a PDF numeric object — either an integer or a real.
+/// Represents a PDF numeric object: either an integer or a real.
 ///
 /// The `std::variant` discriminator replaces the need for a separate kind
 /// field: `std::holds_alternative<std::int64_t>` means integer,

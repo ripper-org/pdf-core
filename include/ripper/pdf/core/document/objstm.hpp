@@ -12,9 +12,13 @@ class document;
 
 /// Typed view over an Object Stream (PDF 1.5+ /Type /ObjStm).
 ///
-/// Object Streams store multiple indirect objects in a single compressed stream.
-/// Follows the same pattern as `catalog`, `pages`, and `page` — inherits from
-/// `object_view` and provides domain-specific methods over the raw dictionary.
+/// An Object Stream (ISO 32000-1 §7.5.7) is a PDF stream object whose dictionary holds
+/// entries such as /Type, /N and /First. This view binds to an `indirect_object` whose
+/// value is that stream, and provides domain-specific methods over the stream's
+/// dictionary and decoded payload.
+///
+/// Follows the same pattern as `catalog`, `pages`, and `page`. Inherits from
+/// `object_view` and provides domain-specific methods over the stream content.
 class objstm : public object_view
 {
 public:

@@ -9,7 +9,7 @@ namespace ripper::pdf::core
 ///
 /// Writes every in-memory object exactly as it lives in the document, without
 /// validation, correction, or squash.  Corrupted objects, broken references,
-/// or invalid dictionary_object structures are serialised verbatim — it is the caller's
+/// or invalid dictionary_object structures are serialised verbatim. It is the caller's
 /// responsibility to ensure correctness.
 ///
 /// The only mechanical step is a resolve pass to load any on-disk objects that

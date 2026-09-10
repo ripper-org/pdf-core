@@ -15,8 +15,8 @@ namespace ripper::pdf::core
 /// Produces:
 ///   trailer\n<<dict>>\nstartxref\n<offset>\n%%EOF\n
 ///
-/// The trailer dictionary_object is serialized as-is. No keys are stripped —
-/// the caller is responsible for the correctness of the dictionary_object contents.
+/// The trailer dictionary_object is serialized as-is. No keys are stripped.
+/// The caller is responsible for the correctness of the dictionary_object contents.
 class default_trailer_serializer : public trailer_serializer
 {
 public:

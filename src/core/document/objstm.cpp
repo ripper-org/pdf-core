@@ -19,11 +19,11 @@ objstm::objstm(indirect_object& obj) noexcept : object_view(obj) {}
 
 std::uint32_t objstm::count() const
 {
-    const auto* d = dictionary();
-    if (d == nullptr)
-        throw parse_exception{"Object Stream has no dictionary"};
+    const auto* os = obj().content().as_stream();
+    if (os == nullptr)
+        throw parse_exception{"Object is not a stream"};
 
-    const auto* n = d->get_number("N");
+    const auto* n = os->dictionary().get_number("N");
     if (n == nullptr)
         throw parse_exception{"Object Stream missing required /N"};
 
@@ -32,11 +32,11 @@ std::uint32_t objstm::count() const
 
 std::uint32_t objstm::first_offset() const
 {
-    const auto* d = dictionary();
-    if (d == nullptr)
-        throw parse_exception{"Object Stream has no dictionary"};
+    const auto* os = obj().content().as_stream();
+    if (os == nullptr)
+        throw parse_exception{"Object is not a stream"};
 
-    const auto* first = d->get_number("First");
+    const auto* first = os->dictionary().get_number("First");
     if (first == nullptr)
         throw parse_exception{"Object Stream missing required /First"};
 
@@ -45,11 +45,11 @@ std::uint32_t objstm::first_offset() const
 
 std::optional<class objstm> objstm::extension()
 {
-    const auto* d = dictionary();
-    if (d == nullptr)
+    auto* os = obj().content().as_stream();
+    if (os == nullptr)
         return std::nullopt;
 
-    const auto* ext_ref = d->get_indirect_reference("Extends");
+    const auto* ext_ref = os->dictionary().get_indirect_reference("Extends");
     if (ext_ref == nullptr)
         return std::nullopt;
 

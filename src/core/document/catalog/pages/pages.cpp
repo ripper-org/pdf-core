@@ -20,7 +20,7 @@ pages::pages(indirect_object& obj) noexcept : object_view(obj) {}
 
 std::uint64_t pages::count() const
 {
-    auto* d = obj().dictionary();
+    auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Pages content is not a dictionary"};
 
@@ -76,7 +76,7 @@ std::optional<class page> pages::page(indirect_reference ref)
     if (resolved == nullptr)
         return std::nullopt;
 
-    auto* d = resolved->dictionary();
+    auto* d = resolved->content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Page reference " + std::to_string(ref.object_number()) +
                               " is not a dictionary"};
@@ -150,7 +150,7 @@ class page pages::add_page()
         throw logic_exception{"Failed to commit page to cross-reference table"};
 
     // Update /Kids and /Count on this pages node
-    auto* d = obj().dictionary();
+    auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Pages content is not a dictionary"};
 
@@ -184,7 +184,7 @@ class page pages::add_page()
 
         up->rebind_to_active_revision();
 
-        auto* pd = up->obj().dictionary();
+        auto* pd = up->obj().content().as_dictionary();
         if (pd == nullptr)
             break;
 
@@ -232,7 +232,7 @@ void pages::delete_page(std::uint64_t page_index)
 
         ancestor.rebind_to_active_revision();
 
-        auto* d = ancestor.obj().dictionary();
+        auto* d = ancestor.obj().content().as_dictionary();
         if (d == nullptr)
             break;
 

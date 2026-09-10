@@ -58,7 +58,7 @@ public:
 
     /// Removes the child identified by `ref` from this node's /Kids array.
     ///
-    /// Does NOT update /Count — the caller is responsible for decrementing
+    /// Does NOT update /Count, the caller is responsible for decrementing
     /// /Count on this node and all ancestors after calling this method.
     ///
     /// @throws `logic_exception` if this node has no /Kids array.

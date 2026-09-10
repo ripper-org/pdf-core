@@ -63,7 +63,7 @@ public:
     /// Look up a mutable cross-reference entry by exact indirect reference.
     ///
     /// Both `ref.object_number()` and `ref.generation()` must match.
-    /// This is the primary lookup — prefer it over `find(object_number)` when
+    /// This is the primary lookup. Prefer it over `find(object_number)` when
     /// you hold a specific indirect reference.
     ///
     /// Returns a raw pointer into the table, or `nullptr` if not found.
@@ -72,7 +72,7 @@ public:
     /// Look up a read-only cross-reference entry by exact indirect reference.
     ///
     /// Both `ref.object_number()` and `ref.generation()` must match.
-    /// This is the primary lookup — prefer it over `find(object_number)` when
+    /// This is the primary lookup, prefer it over `find(object_number)` when
     /// you hold a specific indirect reference.
     ///
     /// Returns a raw pointer into the table, or `nullptr` if not found.
@@ -81,7 +81,7 @@ public:
 
     /// Look up the most recent mutable entry whose object number matches `ref.object_number()`.
     ///
-    /// The generation number in `ref` is ignored — only the object number is used.
+    /// The generation number in `ref` is ignored. Only the object number is used.
     /// When multiple entries share the same object number, the newest revision wins.
     [[nodiscard]] cross_reference_entry* find_most_recent(const indirect_reference& ref) noexcept
     {
@@ -90,7 +90,7 @@ public:
 
     /// Look up the most recent read-only entry whose object number matches `ref.object_number()`.
     ///
-    /// The generation number in `ref` is ignored — only the object number is used.
+    /// The generation number in `ref` is ignored, only the object number is used.
     /// When multiple entries share the same object number, the newest revision wins.
     [[nodiscard]] const cross_reference_entry*
     find_most_recent(const indirect_reference& ref) const noexcept

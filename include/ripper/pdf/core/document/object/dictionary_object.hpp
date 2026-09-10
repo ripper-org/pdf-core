@@ -5,7 +5,7 @@
 /// complete for its unordered_map, while object's variant holds
 /// unique_ptr<dictionary_object>).
 ///
-/// This header exists for API symmetry — every PDF object type has a
+/// This header exists for API symmetry. Every PDF object type has a
 /// *_object.hpp entry point.
 
 #include "ripper/pdf/core/document/object/object.hpp"

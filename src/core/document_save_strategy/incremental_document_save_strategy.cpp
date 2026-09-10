@@ -24,7 +24,7 @@ void incremental_document_save_strategy::save(document& doc)
 {
     if (!doc.has_reader())
         throw logic_exception{
-            "No reader backend available — incremental save requires the original file"};
+            "No reader backend available. Incremental save requires the original file"};
 
     if (!doc.has_writer())
         throw logic_exception{"No writer backend available"};

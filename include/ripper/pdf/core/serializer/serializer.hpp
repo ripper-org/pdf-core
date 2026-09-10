@@ -54,7 +54,7 @@ public:
     /// Serialize a PDF trailer block to a byte buffer.
     ///
     /// Emits `trailer\n<<dict>>\nstartxref\n<xref_offset>\n%%EOF\n`.
-    /// The trailer dictionary_object is serialized as-is — no keys are stripped.
+    /// The trailer dictionary_object is serialized as-is, no keys are stripped.
     [[nodiscard]] std::vector<std::byte> serialize_trailer(const trailer& t,
                                                            std::uint64_t xref_offset);
 

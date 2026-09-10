@@ -21,7 +21,7 @@ class cross_reference_entry;
 /// scanning revisions from newest to oldest for lookups and compiling entry maps
 /// from oldest to newest.
 ///
-/// The manager does NOT own the revisions — they are owned by revision_manager.
+/// The manager does NOT own the revisions, they are owned by revision_manager.
 /// The manager holds a reference to the revisions vector and must not outlive it.
 ///
 /// ## Lookup semantics

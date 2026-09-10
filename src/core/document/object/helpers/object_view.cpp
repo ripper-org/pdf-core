@@ -16,16 +16,6 @@ const indirect_object& object_view::obj() const noexcept
     return obj_.get();
 }
 
-class dictionary_object* object_view::dictionary() noexcept
-{
-    return obj().dictionary();
-}
-
-const class dictionary_object* object_view::dictionary() const noexcept
-{
-    return obj().dictionary();
-}
-
 void object_view::rebind(indirect_object& obj) noexcept
 {
     obj_ = std::ref(obj);

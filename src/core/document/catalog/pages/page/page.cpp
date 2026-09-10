@@ -12,7 +12,7 @@ page::page(indirect_object& obj) noexcept : object_view(obj) {}
 
 std::optional<class pages> page::parent()
 {
-    const auto* d = obj().dictionary();
+    const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         return std::nullopt;
 
@@ -24,7 +24,7 @@ std::optional<class pages> page::parent()
     if (resolved == nullptr)
         return std::nullopt;
 
-    const auto* parent_dict = resolved->dictionary();
+    const auto* parent_dict = resolved->content().as_dictionary();
     if (parent_dict == nullptr)
         throw logic_exception{"Page /Parent is not a dictionary"};
 

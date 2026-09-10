@@ -19,12 +19,6 @@ public:
     /// Returns a const reference to the underlying indirect_object.
     [[nodiscard]] const indirect_object& obj() const noexcept;
 
-    /// Returns a pointer to the content dictionary, or nullptr if not a dictionary.
-    [[nodiscard]] class dictionary_object* dictionary() noexcept;
-
-    /// Returns a const pointer to the content dictionary, or nullptr if not a dictionary.
-    [[nodiscard]] const class dictionary_object* dictionary() const noexcept;
-
     /// Rebind this view to a different indirect_object.
     ///
     /// After this call, all operations on this view target `obj`.
@@ -39,7 +33,7 @@ public:
     ///
     /// @warning The underlying `indirect_object` is replaced by a clone in a different
     /// xref entry. Any raw pointer or reference to the previous indirect_object obtained
-    /// before this call (e.g. via `obj()`, `resolve_object()`, or `dictionary()`) is
+    /// before this call (e.g. via `obj()`, `resolve_object()`, or `obj().content()`) is
     /// invalidated and must not be used after the rebind.
     ///
     /// @throws logic_exception if the object cannot be found or cloned.

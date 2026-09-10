@@ -101,10 +101,10 @@ TEST_CASE("indirect_object clone creates independent deep copy", "[indirect_obje
 
     REQUIRE(cloned.identity().reference().object_number() == 1);
     REQUIRE(cloned.identity().reference().generation() == 0);
-    REQUIRE(*cloned.dictionary()->get_string("Value") == "hello");
+    REQUIRE(*cloned.content().as_dictionary()->get_string("Value") == "hello");
 
-    original.dictionary()->set("Value", object{string_object{"modified"}});
-    REQUIRE(*cloned.dictionary()->get_string("Value") == "hello");
+    original.content().as_dictionary()->set("Value", object{string_object{"modified"}});
+    REQUIRE(*cloned.content().as_dictionary()->get_string("Value") == "hello");
 }
 
 TEST_CASE("cross_reference_entry copy deep-clones resolved indirect object",
@@ -117,7 +117,7 @@ TEST_CASE("cross_reference_entry copy deep-clones resolved indirect object",
     cross_reference_entry original{indirect_reference{3, 1}, std::move(obj)};
     REQUIRE(original.is_resolved());
     REQUIRE(original.in_use());
-    REQUIRE(*original.indirect_object()->dictionary()->get_string("Value") == "entry");
+    REQUIRE(*original.indirect_object()->content().as_dictionary()->get_string("Value") == "entry");
 
     cross_reference_entry copy{original};
 
@@ -125,11 +125,12 @@ TEST_CASE("cross_reference_entry copy deep-clones resolved indirect object",
     REQUIRE(copy.reference().generation() == 1);
     REQUIRE(copy.is_resolved());
     REQUIRE(copy.in_use());
-    REQUIRE(*copy.indirect_object()->dictionary()->get_string("Value") == "entry");
+    REQUIRE(*copy.indirect_object()->content().as_dictionary()->get_string("Value") == "entry");
 
     // Modify original — copy must be untouched
-    original.indirect_object()->dictionary()->set("Value", object{string_object{"modified"}});
-    REQUIRE(*copy.indirect_object()->dictionary()->get_string("Value") == "entry");
+    original.indirect_object()->content().as_dictionary()->set("Value",
+                                                               object{string_object{"modified"}});
+    REQUIRE(*copy.indirect_object()->content().as_dictionary()->get_string("Value") == "entry");
 }
 
 TEST_CASE("cross_reference_entry copy handles unresolved entries", "[cross_reference_entry][copy]")

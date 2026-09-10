@@ -47,10 +47,13 @@ TEST_CASE("add_entry_from copies a resolved entry into a section",
     REQUIRE(target_entry->reference().object_number() == 1);
     REQUIRE(target_entry->reference().generation() == 0);
     REQUIRE(target_entry->is_resolved());
-    REQUIRE(*target_entry->indirect_object()->dictionary()->get_string("Data") == "source");
+    REQUIRE(*target_entry->indirect_object()->content().as_dictionary()->get_string("Data") ==
+            "source");
 
-    source_entry->indirect_object()->dictionary()->set("Data", object{string_object{"modified"}});
-    REQUIRE(*target_entry->indirect_object()->dictionary()->get_string("Data") == "source");
+    source_entry->indirect_object()->content().as_dictionary()->set(
+        "Data", object{string_object{"modified"}});
+    REQUIRE(*target_entry->indirect_object()->content().as_dictionary()->get_string("Data") ==
+            "source");
 }
 
 TEST_CASE("add_entry_from copies an unresolved entry", "[cross_reference_section][add_entry_from]")
@@ -167,9 +170,12 @@ TEST_CASE("create_new_revision + add_entry_from for incremental setup",
     REQUIRE(copied->reference().object_number() == 42);
     REQUIRE(copied != nullptr);
     REQUIRE(copied->is_resolved());
-    REQUIRE(*copied->indirect_object()->dictionary()->get_string("Data") == "original");
+    REQUIRE(*copied->indirect_object()->content().as_dictionary()->get_string("Data") ==
+            "original");
 
-    old_entry->indirect_object()->dictionary()->set("Data", object{string_object{"modified"}});
-    REQUIRE(*copied->indirect_object()->dictionary()->get_string("Data") == "original");
+    old_entry->indirect_object()->content().as_dictionary()->set("Data",
+                                                                 object{string_object{"modified"}});
+    REQUIRE(*copied->indirect_object()->content().as_dictionary()->get_string("Data") ==
+            "original");
 }
 } // namespace ripper::pdf::core

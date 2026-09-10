@@ -8,7 +8,7 @@ namespace ripper::pdf::core
 
 class object;
 
-/// Represents a PDF array object — an ordered sequence of PDF objects.
+/// Represents a PDF array object: an ordered sequence of PDF objects.
 ///
 /// Stored by value inside `object`'s variant.  Uses `std::vector<object>`
 /// which tolerates incomplete `object` on common standard library

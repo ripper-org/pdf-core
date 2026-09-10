@@ -29,16 +29,6 @@ object& indirect_object::content() noexcept
     return content_;
 }
 
-const dictionary_object* indirect_object::dictionary() const noexcept
-{
-    return content_.as_dictionary();
-}
-
-dictionary_object* indirect_object::dictionary() noexcept
-{
-    return content_.as_dictionary();
-}
-
 indirect_object indirect_object::clone() const
 {
     return indirect_object{identity_, content_};

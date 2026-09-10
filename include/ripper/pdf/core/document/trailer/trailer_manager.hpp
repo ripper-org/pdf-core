@@ -14,7 +14,7 @@ namespace ripper::pdf::core
 /// The trailer_manager provides a compiled (merged) view and active-trailer
 /// access over the revisions owned by revision_manager.
 ///
-/// The manager does NOT own the revisions — they are owned by revision_manager.
+/// The manager does NOT own the revisions, they are owned by revision_manager.
 /// The manager holds a reference to the revisions vector and must not outlive it.
 ///
 /// ## Ordering

@@ -5,35 +5,23 @@
 
 namespace ripper::pdf::core
 {
-/// A fully resolved PDF indirect object.
+/// A PDF indirect object (ISO 32000-1 §7.3.10): an object identifier plus the object value
+/// it carries.
 ///
-/// Composes identity and content to represent a PDF indirect object as defined in the spec:
+/// Pairs an `object_identity` (object number + generation, scoped to the owning document) with
+/// the carried value (`content()`). The value is arbitrary — any PDF object type — and is
+/// accessed via the typed accessors on the carried `object`, e.g. `content().as_dictionary()`.
 ///
-///   - **Identity** (`object_identity`): the object number, generation number and owning document.
-///   - **Content** (`object`): any PDF direct object — null, boolean, integer, real, string,
-///     name, array, dictionary, or indirect reference.
-///   - **Content stream**: represented as an `object` stream variant when applicable.
+/// `object_identity` knows *which* object this is; `indirect_object` adds the value it carries.
 ///
-/// ## Relationship to `object_identity`
+/// The typed views (`catalog`, `pages`, `page`, `objstm`, …) are non-owning `object_view`
+/// wrappers over an `indirect_object&`, not subclasses of this class.
 ///
-/// `object_identity` carries identity only — it knows *which* indirect_object this is, not *what*
-/// it contains. `indirect_object` is the resolved form: it pairs that identity with a parsed
-/// content object.
-///
-/// ## Derived types
-///
-/// Semantic PDF indirect object types (e.g. `catalog`, `pages`, `page`, `font`) extend this class
-/// and provide domain-specific helpers on top of the raw content access provided here. They are
-/// typed views over objects whose content is expected to be a dictionary; `dictionary()` returns
-/// `nullptr` for objects whose content is a primitive.
-///
-/// ## Ownership
-///
-/// `indirect_object` owns its content object. The `object_identity` identity is held by value.
+/// `indirect_object` owns its content object; the identity is held by value.
 class indirect_object
 {
 public:
-    /// Construct an indirect object with identity and content.
+    /// Construct an indirect object from an object identifier and the object value it carries.
     indirect_object(object_identity identity, object content) noexcept;
 
     /// Returns the `object_identity` identity of this indirect_object, which includes the
@@ -43,24 +31,14 @@ public:
     /// Returns a mutable reference to the `object_identity` identity of this indirect_object.
     [[nodiscard]] object_identity& identity() noexcept;
 
-    /// Returns the raw content object of this indirect_object.
+    /// Returns the object value carried by this indirect object.
     ///
-    /// May hold any PDF direct object type: null, boolean, integer, real, string,
-    /// name, array, dictionary, or indirect reference.
+    /// May hold any PDF object type: null, boolean, integer, real, string,
+    /// name, array, dictionary, stream, or indirect reference.
     [[nodiscard]] const object& content() const noexcept;
 
-    /// Returns a mutable reference to the raw content object.
+    /// Returns a mutable reference to the carried object value.
     [[nodiscard]] object& content() noexcept;
-
-    /// Returns a pointer to the content dictionary, or `nullptr` if the content is not a
-    /// dictionary.
-    ///
-    /// Derived typed classes (catalog, pages, etc.) rely on this being non-null.
-    [[nodiscard]] const class dictionary_object* dictionary() const noexcept;
-
-    /// Returns a mutable pointer to the content dictionary, or `nullptr` if the content is not a
-    /// dictionary.
-    [[nodiscard]] class dictionary_object* dictionary() noexcept;
 
     /// Create a deep copy of this indirect object.
     ///
