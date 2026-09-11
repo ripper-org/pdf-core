@@ -60,8 +60,8 @@ override their repository or tag with:
 - `clang-tidy` (Linux + Windows) - runs static analysis with tests disabled
   (`-DPDF_RIPPER_CORE_ENABLE_TESTS=OFF`).
 
-The workflow pins `clang-format`/`clang-tidy` 22.1.0 (matching the LLVM
-toolchain this project formats against) via `pip`. Windows uses the Ninja
+`clang-format`/`clang-tidy` are installed via `apt` on Linux; Windows runs
+expose LLVM's tools at `C:\Program Files\LLVM\bin`. Windows uses the Ninja
 generator in the `clang-tidy` job because it produces `compile_commands.json`,
 which the tidy target requires.
 

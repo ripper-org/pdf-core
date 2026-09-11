@@ -21,13 +21,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install clang-format 22.1.0
-        run: pip install clang-format==22.1.0
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DPDF_RIPPER_CORE_ENABLE_TESTS=OFF
@@ -70,13 +65,16 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+      - name: Install clang-tidy (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
 
-      - name: Install clang-tidy 22.1.0
-        run: pip install clang-tidy==22.1.0
+      - name: Add LLVM to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # shellcheck disable=SC2028,SC2086
+          'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
 
       # Tests are excluded from static analysis by default
       # (PDF_RIPPER_CORE_TIDY_INCLUDE_TESTS defaults to OFF); disabling the

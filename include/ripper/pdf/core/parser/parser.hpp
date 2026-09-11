@@ -34,7 +34,7 @@ public:
     [[nodiscard]] parser_manager& manager();
 
     /// Parse and return the document header.
-    [[nodiscard]] header header();
+    [[nodiscard]] header parse_header();
 
     /// Parse and return the complete revision history of the document.
     [[nodiscard]] std::unique_ptr<revision_manager> revision_history();

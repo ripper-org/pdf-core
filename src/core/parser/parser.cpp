@@ -26,7 +26,7 @@ parser_manager& parser::manager()
     return *manager_;
 }
 
-header parser::header()
+header parser::parse_header()
 {
     return manager().header_parser().parse();
 }

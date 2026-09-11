@@ -4,6 +4,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <string>

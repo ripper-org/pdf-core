@@ -95,7 +95,7 @@ header object_manager::parse_header(const document& doc)
     if (!doc.has_parser())
         throw logic_exception{"No parser available"};
 
-    return doc.parser()->header();
+    return doc.parser()->parse_header();
 }
 
 header object_manager::create_header()
