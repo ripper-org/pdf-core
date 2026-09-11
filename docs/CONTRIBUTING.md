@@ -39,11 +39,31 @@ Configuration variables: `BUILD_DIR`, `BUILD_TYPE`, `GENERATOR`, `DEPS_DIR`.
 | ----------------------------------- | ------- | ---------------------------------------- |
 | `PDF_RIPPER_CORE_ENABLE_TESTS`      | auto    | `ON` when this is the top-level project  |
 | `PDF_RIPPER_CORE_TIDY_INCLUDE_TESTS`| `OFF`   | Include test sources in clang-tidy       |
+| `PDF_RIPPER_CORE_CLANG_FORMAT_BIN`  | auto    | Path to `clang-format` (auto-detected)   |
+| `PDF_RIPPER_CORE_CLANG_TIDY_BIN`    | auto    | Path to `clang-tidy` (auto-detected)     |
+
+clang-tidy only analyzes library sources by default; test sources are
+excluded unless `-DPDF_RIPPER_CORE_TIDY_INCLUDE_TESTS=ON` and tests are enabled.
 
 io-core and zlib-ng are fetched automatically via `FetchContent`. You can
 override their repository or tag with:
 - `PDF_RIPPER_CORE_IO_CORE_GIT_REPOSITORY`
 - `PDF_RIPPER_CORE_IO_CORE_GIT_TAG`
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs three jobs:
+
+- `format-check` (Linux) - verifies `clang-format` compliance.
+- `build-and-test` (Linux + Windows) - compiles the library and runs the
+  CTest suite.
+- `clang-tidy` (Linux + Windows) - runs static analysis with tests disabled
+  (`-DPDF_RIPPER_CORE_ENABLE_TESTS=OFF`).
+
+The workflow pins `clang-format`/`clang-tidy` 22.1.0 (matching the LLVM
+toolchain this project formats against) via `pip`. Windows uses the Ninja
+generator in the `clang-tidy` job because it produces `compile_commands.json`,
+which the tidy target requires.
 
 ## Test suite
 
