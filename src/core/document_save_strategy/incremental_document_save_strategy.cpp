@@ -11,11 +11,11 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/serializer/serializer.hpp"
 
-#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace ripper::pdf::core
 {
@@ -44,7 +44,9 @@ void incremental_document_save_strategy::save(document& doc)
     constexpr std::size_t k_copy_buf_size = 1u << 20;
     r.seek(0);
 
-    std::array<std::byte, k_copy_buf_size> copy_buf{};
+    // 1 MiB array on the stack overflows MSVC's default 1 MiB
+    // stack at function entry (Linux/macOS default to 8 MiB).
+    std::vector<std::byte> copy_buf(k_copy_buf_size);
 
     while (true)
     {

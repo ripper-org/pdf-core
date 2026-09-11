@@ -21,8 +21,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # Version-pinned to match the LLVM 22.1.0 toolchain the project is
+      # formatted against; apt's clang-format (v18 on Ubuntu 24.04) disagrees.
+      - name: Install clang-format 22.1.0
+        run: pip install clang-format==22.1.0
+
+      - name: Verify clang-format version
+        run: clang-format --version
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DPDF_RIPPER_CORE_ENABLE_TESTS=OFF
@@ -73,7 +83,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install clang-tidy (Linux)
+      - name: Install clang-tidy
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang-tidy
 
