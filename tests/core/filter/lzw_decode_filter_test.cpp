@@ -830,7 +830,8 @@ TEST_CASE("lzw_decode_filter stops at EOD and tolerates trailing bytes", "[filte
     auto encoded = b_hex(vec_hello_ec1);
 
     auto trailing = encoded;
-    trailing.insert(trailing.end(), b("junk after EOD").begin(), b("junk after EOD").end());
+    auto junk = b("junk after EOD");
+    trailing.insert(trailing.end(), junk.begin(), junk.end());
     REQUIRE(filter.decode(trailing) == expected);
 }
 

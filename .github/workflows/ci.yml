@@ -41,8 +41,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure
+      # BUILD_SHARED_LIBS=OFF on Windows forces zlib-ng to build static; its
+      # default shared build would otherwise require its DLL at test runtime
+      # (Catch2 test discovery exits with 0xc0000135).
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF
 
       - name: Build
         run: cmake --build build --config Debug -j

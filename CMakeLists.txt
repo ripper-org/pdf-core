@@ -114,12 +114,7 @@ if(PDF_RIPPER_CORE_ENABLE_TESTS AND PDF_RIPPER_CORE_TIDY_INCLUDE_TESTS)
     list(APPEND PDF_RIPPER_CORE_TIDY_FILES ${PDF_RIPPER_CORE_TEST_FILES})
 endif()
 
-set(PDF_RIPPER_CORE_CLANG_FORMAT_BIN "" CACHE FILEPATH
-    "Path to clang-format; auto-detected from PATH when empty"
-)
-if(NOT PDF_RIPPER_CORE_CLANG_FORMAT_BIN)
-    find_program(PDF_RIPPER_CORE_CLANG_FORMAT_BIN NAMES clang-format)
-endif()
+find_program(PDF_RIPPER_CORE_CLANG_FORMAT_BIN NAMES clang-format)
 if(PDF_RIPPER_CORE_CLANG_FORMAT_BIN)
     add_custom_target(pdf_ripper_core_format
         COMMAND ${PDF_RIPPER_CORE_CLANG_FORMAT_BIN} -i ${PDF_RIPPER_CORE_FORMAT_FILES}
@@ -148,12 +143,7 @@ else()
     )
 endif()
 
-set(PDF_RIPPER_CORE_CLANG_TIDY_BIN "" CACHE FILEPATH
-    "Path to clang-tidy; auto-detected from PATH when empty"
-)
-if(NOT PDF_RIPPER_CORE_CLANG_TIDY_BIN)
-    find_program(PDF_RIPPER_CORE_CLANG_TIDY_BIN NAMES clang-tidy)
-endif()
+find_program(PDF_RIPPER_CORE_CLANG_TIDY_BIN NAMES clang-tidy)
 if(PDF_RIPPER_CORE_CLANG_TIDY_BIN)
     add_custom_target(pdf_ripper_core_tidy
         COMMAND ${PDF_RIPPER_CORE_CLANG_TIDY_BIN} -p ${CMAKE_BINARY_DIR} ${PDF_RIPPER_CORE_TIDY_FILES}
