@@ -4,7 +4,7 @@
 #include "ripper/pdf/core/document/revision.hpp"
 #include "ripper/pdf/core/document/trailer/trailer_manager.hpp"
 
-#include <vector>
+#include <deque>
 
 namespace ripper::pdf::core
 {
@@ -22,13 +22,13 @@ public:
     /// `revisions` must be in oldest-first order. Typically the parser builds this
     /// list by collecting revisions newest-first (following /Prev) and then
     /// reversing before constructing the manager.
-    explicit revision_manager(std::vector<revision> revisions);
+    explicit revision_manager(std::deque<revision> revisions);
 
     /// Returns a mutable reference to the ordered list of all revisions (oldest first).
-    [[nodiscard]] std::vector<revision>& all() noexcept;
+    [[nodiscard]] std::deque<revision>& all() noexcept;
 
     /// Returns a const reference to the ordered list of all revisions (oldest first).
-    [[nodiscard]] const std::vector<revision>& all() const noexcept;
+    [[nodiscard]] const std::deque<revision>& all() const noexcept;
 
     /// Returns a mutable reference to the current (newest) revision.
     [[nodiscard]] revision& current();
@@ -64,7 +64,7 @@ public:
 
 private:
     // The list of revisions in chronological order (oldest first, newest last).
-    std::vector<revision> revisions_;
+    std::deque<revision> revisions_;
 
     // Compiled cross-reference manager view over all revisions.
     cross_reference_manager xref_view_;

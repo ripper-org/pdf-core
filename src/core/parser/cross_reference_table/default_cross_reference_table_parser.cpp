@@ -121,7 +121,7 @@ cross_reference_section default_cross_reference_table_parser::parse(std::string_
 
     content = content.substr(firstNewline + 1);
 
-    cross_reference_section section{std::vector<cross_reference_subsection>{}};
+    cross_reference_section section{std::deque<cross_reference_subsection>{}};
 
     while (!content.empty())
     {

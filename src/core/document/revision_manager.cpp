@@ -7,17 +7,17 @@
 
 namespace ripper::pdf::core
 {
-revision_manager::revision_manager(std::vector<revision> revisions)
+revision_manager::revision_manager(std::deque<revision> revisions)
     : revisions_{std::move(revisions)}, xref_view_{revisions_}, trailer_view_{revisions_}
 {
 }
 
-std::vector<revision>& revision_manager::all() noexcept
+std::deque<revision>& revision_manager::all() noexcept
 {
     return revisions_;
 }
 
-const std::vector<revision>& revision_manager::all() const noexcept
+const std::deque<revision>& revision_manager::all() const noexcept
 {
     return revisions_;
 }

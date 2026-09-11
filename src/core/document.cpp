@@ -215,7 +215,7 @@ revision& document::create_new_revision()
     cross_reference_subsection::entry_map entries;
     entries.emplace(0, cross_reference_entry{indirect_reference{0, 65535}, 0, false});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
 
     cross_reference_section new_section{std::move(subsections)};

@@ -26,7 +26,7 @@ revision make_revision_from_entries(std::vector<cross_reference_entry> entries,
 
     cross_reference_subsection subsection{0, std::move(map)};
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.push_back(std::move(subsection));
 
     cross_reference_section section{std::move(subsections), startxref};
@@ -43,7 +43,7 @@ TEST_CASE("cross_reference_manager prefers newest section entries", "[xref][mana
     std::vector<cross_reference_entry> newer_entries;
     newer_entries.emplace_back(indirect_reference{1, 1}, 22, true);
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.push_back(make_revision_from_entries(std::move(older_entries)));
     revisions.push_back(make_revision_from_entries(std::move(newer_entries)));
 
@@ -62,7 +62,7 @@ TEST_CASE("cross_reference_manager active_entries filters deleted objects", "[xr
     entries.emplace_back(indirect_reference{1, 0}, 12, false);
     entries.emplace_back(indirect_reference{2, 0}, 24, true);
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.push_back(make_revision_from_entries(std::move(entries)));
 
     revision_manager manager{std::move(revisions)};
@@ -78,13 +78,13 @@ TEST_CASE("cross_reference_manager reserve appends pending entry", "[xref][manag
     cross_reference_subsection::entry_map entries;
     entries.emplace(0, cross_reference_entry{indirect_reference{0, 65535}, 0, false});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
 
     cross_reference_section section{std::move(subsections)};
     trailer t{dictionary_object{}};
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.emplace_back(std::move(section), std::move(t));
 
     revision_manager manager{std::move(revisions)};
@@ -118,7 +118,7 @@ TEST_CASE("section free-list links deletions and recycles on take", "[xref][sect
     entries.emplace(1, cross_reference_entry{indirect_reference{1, 0}, 100, true});
     entries.emplace(2, cross_reference_entry{indirect_reference{2, 0}, 200, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 
@@ -149,7 +149,7 @@ TEST_CASE("cross_reference_manager recycles freed slots", "[xref][manager][free]
     entries.emplace_back(indirect_reference{3, 0}, 30, true);
     entries.emplace_back(indirect_reference{5, 0}, 50, true);
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.push_back(make_revision_from_entries(std::move(entries)));
 
     revision_manager manager{std::move(revisions)};
@@ -186,12 +186,12 @@ TEST_CASE("cross_reference_manager records deletion in active section", "[xref][
     old_entries.emplace_back(indirect_reference{0, 65535}, 0, false);
     old_entries.emplace_back(indirect_reference{9, 0}, 90, true);
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.push_back(make_revision_from_entries(std::move(old_entries)));
 
     cross_reference_subsection::entry_map head_entries;
     head_entries.emplace(0, cross_reference_entry{indirect_reference{0, 65535}, 0, false});
-    std::vector<cross_reference_subsection> subs;
+    std::deque<cross_reference_subsection> subs;
     subs.emplace_back(0, std::move(head_entries));
     revisions.emplace_back(cross_reference_section{std::move(subs)}, trailer{dictionary_object{}});
 

@@ -31,11 +31,11 @@ TEST_CASE("add_entry_from copies a resolved entry into a section",
     auto obj = std::make_unique<class indirect_object>(make_obj(doc, 1, "source"));
     entries.emplace(1, cross_reference_entry{indirect_reference{1, 0}, std::move(obj)});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(1, std::move(entries));
     cross_reference_section source_section{std::move(subsections)};
 
-    cross_reference_section target{std::vector<cross_reference_subsection>{}};
+    cross_reference_section target{std::deque<cross_reference_subsection>{}};
 
     auto* source_entry = source_section.find(1);
     REQUIRE(source_entry != nullptr);
@@ -58,10 +58,10 @@ TEST_CASE("add_entry_from copies a resolved entry into a section",
 
 TEST_CASE("add_entry_from copies an unresolved entry", "[cross_reference_section][add_entry_from]")
 {
-    cross_reference_section source{std::vector<cross_reference_subsection>{}};
+    cross_reference_section source{std::deque<cross_reference_subsection>{}};
     source.add_entry(cross_reference_entry{indirect_reference{3, 0}, 5000, true});
 
-    cross_reference_section target{std::vector<cross_reference_subsection>{}};
+    cross_reference_section target{std::deque<cross_reference_subsection>{}};
 
     auto* source_entry = source.find(3);
     REQUIRE(source_entry != nullptr);
@@ -81,13 +81,13 @@ TEST_CASE("push_revision creates revision_history with object 0",
     cross_reference_subsection::entry_map entries;
     entries.emplace(0, cross_reference_entry{indirect_reference{0, 65535}, 0, false});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
 
     cross_reference_section section{std::move(subsections)};
     trailer t{dictionary_object{}};
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.emplace_back(std::move(section), std::move(t));
 
     revision_manager manager{std::move(revisions)};
@@ -108,13 +108,13 @@ TEST_CASE("create_new_revision creates section and trailer with /Prev",
     cross_reference_subsection::entry_map entries;
     entries.emplace(1, cross_reference_entry{indirect_reference{1, 0}, 100, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(1, std::move(entries));
 
     auto existing_section = cross_reference_section{std::move(subsections), 42};
     trailer existing_trailer{dictionary_object{}};
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.emplace_back(std::move(existing_section), std::move(existing_trailer));
 
     revision_manager manager{std::move(revisions)};

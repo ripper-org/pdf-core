@@ -32,7 +32,7 @@ TEST_CASE("default_cross_reference_table_serializer serializes single subsection
     entries.emplace(1, cross_reference_entry{{1, 0}, 42, true});
     entries.emplace(2, cross_reference_entry{{2, 0}, 100, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 
@@ -50,7 +50,7 @@ TEST_CASE("default_cross_reference_table_serializer serializes single in-use ent
     cross_reference_subsection::entry_map entries;
     entries.emplace(5, cross_reference_entry{{5, 0}, 12345, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(5, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 
@@ -66,7 +66,7 @@ TEST_CASE("default_cross_reference_table_serializer serializes free entry only",
     cross_reference_subsection::entry_map entries;
     entries.emplace(0, cross_reference_entry{{0, 65535}, 0, false});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 
@@ -87,7 +87,7 @@ TEST_CASE("default_cross_reference_table_serializer serializes multiple subsecti
     entries5.emplace(5, cross_reference_entry{{5, 0}, 200, true});
     entries5.emplace(6, cross_reference_entry{{6, 0}, 300, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries0));
     subsections.emplace_back(5, std::move(entries5));
     cross_reference_section section{std::move(subsections)};
@@ -123,7 +123,7 @@ TEST_CASE("default_cross_reference_table_serializer serializes entry with missin
     cross_reference_subsection::entry_map entries;
     entries.emplace(1, cross_reference_entry{{1, 0}, std::move(obj)});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(1, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 
@@ -142,7 +142,7 @@ TEST_CASE("default_cross_reference_table_serializer formats 20-byte entries corr
     entries.emplace(0, cross_reference_entry{{0, 65535}, 0, false});
     entries.emplace(1, cross_reference_entry{{1, 0}, 9999999999, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
     cross_reference_section section{std::move(subsections)};
 

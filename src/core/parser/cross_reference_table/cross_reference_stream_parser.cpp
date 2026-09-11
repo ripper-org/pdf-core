@@ -30,7 +30,7 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
     if (entry_size == 0)
         throw parse_exception{"Xref stream entry size is zero"};
 
-    cross_reference_section section{std::vector<cross_reference_subsection>{}};
+    cross_reference_section section{std::deque<cross_reference_subsection>{}};
     std::size_t byte_offset = 0;
 
     for (const auto& range : ranges)

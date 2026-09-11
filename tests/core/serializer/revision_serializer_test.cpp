@@ -32,7 +32,7 @@ cross_reference_section make_traditional_section()
     entries.emplace(0, cross_reference_entry{{0, 65535}, 0, false});
     entries.emplace(1, cross_reference_entry{{1, 0}, 42, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
     return cross_reference_section{std::move(subsections)};
 }

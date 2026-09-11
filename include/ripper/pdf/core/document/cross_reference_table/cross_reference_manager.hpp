@@ -5,9 +5,9 @@
 #include "ripper/pdf/core/document/revision.hpp"
 
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <memory>
-#include <vector>
 
 namespace ripper::pdf::core
 {
@@ -57,7 +57,7 @@ public:
     ///
     /// `revisions` must be in chronological order (oldest first, newest last).
     /// The manager stores a raw pointer and must not outlive the vector.
-    explicit cross_reference_manager(std::vector<revision>& revisions) noexcept;
+    explicit cross_reference_manager(std::deque<revision>& revisions) noexcept;
 
     /// Look up a mutable entry by object number across all revisions.
     ///
@@ -181,6 +181,6 @@ public:
     [[nodiscard]] cross_reference_section& active_section();
 
 private:
-    std::vector<revision>* revisions_;
+    std::deque<revision>* revisions_;
 };
 } // namespace ripper::pdf::core

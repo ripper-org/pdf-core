@@ -186,7 +186,7 @@ TEST_CASE("cross_reference_section copy creates independent section",
     entries.emplace(1, cross_reference_entry{indirect_reference{1, 0}, 100, true});
     entries.emplace(2, cross_reference_entry{indirect_reference{2, 0}, 200, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(1, std::move(entries));
 
     cross_reference_section original{std::move(subsections)};
@@ -208,13 +208,13 @@ TEST_CASE("cross_reference_section copy assignment creates independent section",
     cross_reference_subsection::entry_map entries;
     entries.emplace(5, cross_reference_entry{indirect_reference{5, 0}, 500, true});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(5, std::move(entries));
 
     cross_reference_section original{std::move(subsections)};
 
     cross_reference_subsection::entry_map empty_entries;
-    std::vector<cross_reference_subsection> empty_subsections;
+    std::deque<cross_reference_subsection> empty_subsections;
     empty_subsections.emplace_back(0, std::move(empty_entries));
     cross_reference_section copy{std::move(empty_subsections)};
 

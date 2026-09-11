@@ -77,14 +77,14 @@ std::unique_ptr<revision_manager> object_manager::create_revision_history()
     cross_reference_subsection::entry_map entries;
     entries.emplace(0, cross_reference_entry{indirect_reference{0, 65535}, 0, false});
 
-    std::vector<cross_reference_subsection> subsections;
+    std::deque<cross_reference_subsection> subsections;
     subsections.emplace_back(0, std::move(entries));
 
     cross_reference_section section{std::move(subsections)};
 
     trailer t{dictionary_object{}};
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     revisions.emplace_back(std::move(section), std::move(t));
 
     return std::make_unique<revision_manager>(std::move(revisions));

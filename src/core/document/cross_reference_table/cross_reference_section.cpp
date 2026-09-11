@@ -8,7 +8,7 @@
 namespace ripper::pdf::core
 {
 cross_reference_section::cross_reference_section(
-    std::vector<cross_reference_subsection> subsections,
+    std::deque<cross_reference_subsection> subsections,
     std::optional<std::uint64_t> startxref_offset) noexcept
     : subsections_{std::move(subsections)}, startxref_offset_{startxref_offset}
 {
@@ -220,12 +220,12 @@ std::uint32_t cross_reference_section::next_object_number() const noexcept
     return max_num + 1;
 }
 
-const std::vector<cross_reference_subsection>& cross_reference_section::subsections() const noexcept
+const std::deque<cross_reference_subsection>& cross_reference_section::subsections() const noexcept
 {
     return subsections_;
 }
 
-std::vector<cross_reference_subsection>& cross_reference_section::subsections() noexcept
+std::deque<cross_reference_subsection>& cross_reference_section::subsections() noexcept
 {
     return subsections_;
 }

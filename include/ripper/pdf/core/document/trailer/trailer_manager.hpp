@@ -4,7 +4,7 @@
 #include "ripper/pdf/core/document/trailer/trailer.hpp"
 
 #include <cstddef>
-#include <vector>
+#include <deque>
 
 namespace ripper::pdf::core
 {
@@ -41,7 +41,7 @@ public:
     ///
     /// `revisions` must be in chronological order (oldest first, newest last).
     /// The manager stores a raw pointer and must not outlive the vector.
-    explicit trailer_manager(std::vector<revision>& revisions) noexcept;
+    explicit trailer_manager(std::deque<revision>& revisions) noexcept;
 
     /// Returns a mutable reference to the active (newest) trailer.
     ///
@@ -69,6 +69,6 @@ public:
     [[nodiscard]] std::size_t size() const noexcept;
 
 private:
-    std::vector<revision>* revisions_;
+    std::deque<revision>* revisions_;
 };
 } // namespace ripper::pdf::core

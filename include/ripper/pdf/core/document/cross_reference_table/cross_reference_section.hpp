@@ -5,10 +5,10 @@
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
 
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <memory>
 #include <optional>
-#include <vector>
 
 namespace ripper::pdf::core
 {
@@ -40,7 +40,7 @@ public:
     /// `xref` keyword for this section appears. Can be set or updated later via
     /// `set_startxref_offset()`.
     explicit cross_reference_section(
-        std::vector<cross_reference_subsection> subsections,
+        std::deque<cross_reference_subsection> subsections,
         std::optional<std::uint64_t> startxref_offset = std::nullopt) noexcept;
 
     cross_reference_section(const cross_reference_section&) = default;
@@ -127,12 +127,12 @@ public:
     /// Subsections are stored in the order they were added, each covering a contiguous
     /// range of object numbers. The returned reference is valid for the lifetime of
     /// this section.
-    [[nodiscard]] const std::vector<cross_reference_subsection>& subsections() const noexcept;
+    [[nodiscard]] const std::deque<cross_reference_subsection>& subsections() const noexcept;
 
     /// Returns a mutable view of the subsections in this section.
     ///
     /// The returned reference is valid for the lifetime of this section.
-    [[nodiscard]] std::vector<cross_reference_subsection>& subsections() noexcept;
+    [[nodiscard]] std::deque<cross_reference_subsection>& subsections() noexcept;
 
     /// Returns the byte offset in the file at which the `xref` keyword for this section resides.
     ///
@@ -208,7 +208,7 @@ public:
     [[nodiscard]] cross_reference_entry* add_entry_from(const cross_reference_entry& source);
 
 private:
-    std::vector<cross_reference_subsection> subsections_;
+    std::deque<cross_reference_subsection> subsections_;
     std::optional<std::uint64_t> startxref_offset_;
     std::optional<std::uint32_t> xref_stream_object_number_;
 };

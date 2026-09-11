@@ -6,7 +6,7 @@
 
 namespace ripper::pdf::core
 {
-trailer_manager::trailer_manager(std::vector<revision>& revisions) noexcept : revisions_{&revisions}
+trailer_manager::trailer_manager(std::deque<revision>& revisions) noexcept : revisions_{&revisions}
 {
 }
 

@@ -152,7 +152,7 @@ std::unique_ptr<revision_manager> default_revision_history_parser::parse()
     if (!start_xref_result)
         throw parse_exception{"Missing startxref section"};
 
-    std::vector<revision> revisions;
+    std::deque<revision> revisions;
     std::unordered_set<std::size_t> visited_offsets;
     std::size_t current_offset = *start_xref_result;
 

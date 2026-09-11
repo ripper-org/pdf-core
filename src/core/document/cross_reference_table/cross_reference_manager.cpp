@@ -10,7 +10,7 @@
 
 namespace ripper::pdf::core
 {
-cross_reference_manager::cross_reference_manager(std::vector<revision>& revisions) noexcept
+cross_reference_manager::cross_reference_manager(std::deque<revision>& revisions) noexcept
     : revisions_{&revisions}
 {
 }
