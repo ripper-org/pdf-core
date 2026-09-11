@@ -54,7 +54,7 @@ void incremental_document_save_strategy::save(document& doc)
         if (bytes_read == 0)
             break;
 
-        (void)w.write(std::span{copy_buf.data(), bytes_read});
+        w.write(std::span{copy_buf.data(), bytes_read});
     }
 
     std::optional<std::uint64_t> prev_xref_start;
@@ -99,7 +99,7 @@ void incremental_document_save_strategy::save(document& doc)
 
             entry.set_offset(static_cast<std::uint64_t>(w.tell()));
 
-            (void)w.write(s.serialize_indirect_object(*obj));
+            w.write(s.serialize_indirect_object(*obj));
         }
 
         auto xref_start = static_cast<std::uint64_t>(w.tell());
@@ -126,7 +126,7 @@ void incremental_document_save_strategy::save(document& doc)
             rev.trailer().dictionary().set("ID", object{std::move(new_id)});
         }
 
-        (void)w.write(s.serialize_revision(rev, xref_start));
+        w.write(s.serialize_revision(rev, xref_start));
         rev.section().set_startxref_offset(xref_start);
 
         prev_xref_start = xref_start;

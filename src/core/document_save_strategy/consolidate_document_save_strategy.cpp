@@ -45,7 +45,7 @@ void consolidate_document_save_strategy::save(document& doc)
     auto& s = *doc.serializer();
 
     auto serialized_header = s.serialize_header(doc.header());
-    (void)w.write(serialized_header);
+    w.write(serialized_header);
 
     for (auto [number, entry_ptr] : xref.entries())
     {
@@ -60,12 +60,12 @@ void consolidate_document_save_strategy::save(document& doc)
 
         entry.set_offset(static_cast<std::uint64_t>(w.tell()));
 
-        (void)w.write(s.serialize_indirect_object(*obj));
+        w.write(s.serialize_indirect_object(*obj));
     }
 
     auto xref_start = static_cast<std::uint64_t>(w.tell());
 
-    (void)w.write(s.serialize_revision(doc.revisions().current(), xref_start));
+    w.write(s.serialize_revision(doc.revisions().current(), xref_start));
 
     w.flush();
     w.close();
