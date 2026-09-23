@@ -111,7 +111,9 @@ default_revision_history_parser::find_start_xref_offset(ripper::io::core::reader
         const std::size_t bytes_read = reader.read_line(buffer);
         if (bytes_read == 0)
         {
-            break;
+            // An empty line is valid input; only the cursor reaching the end
+            // of the source terminates the scan.
+            continue;
         }
 
         const std::string_view line{byte::as_chars(buffer.data()), bytes_read};
