@@ -27,6 +27,7 @@ and tests. Dependencies (io-core, zlib-ng, Catch2) are fetched automatically.
 | `make format-check`     | Verify `clang-format` compliance         |
 | `make tidy`             | Run `clang-tidy` static analysis         |
 | `make install`          | Install the library from `build/`        |
+| `make install-check`    | Install to a temp prefix and verify an external CMake consumer |
 | `make clean`            | Remove `build/` and `.deps/`             |
 | `make rebuild`          | Clean then build                         |
 | `make depclean`         | Remove `.deps/` only                     |
@@ -52,11 +53,16 @@ override their repository or tag with:
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs three jobs:
+`.github/workflows/ci.yml` runs these jobs:
 
 - `format-check` (Linux) - verifies `clang-format` compliance.
-- `build-and-test` (Linux + Windows) - compiles the library and runs the
-  CTest suite.
+- `build-and-test` (Linux + macOS + Windows, Debug + Release) - compiles the
+  library and runs the CTest suite.
+- `sanitizers` (Linux) - builds with AddressSanitizer + UndefinedBehaviorSanitizer
+  and runs the test suite.
+- `install-consumer` (Linux) - installs the package plus its dependencies to a
+  temp prefix and verifies an external CMake consumer can build and run against
+  it.
 - `clang-tidy` (Linux + Windows) - runs static analysis with tests disabled
   (`-DPDF_RIPPER_CORE_ENABLE_TESTS=OFF`).
 
@@ -65,7 +71,10 @@ match the LLVM toolchain the project is formatted against — apt's v18 on Ubunt
 24.04 disagrees with v22 formatting). `clang-tidy` is installed via `apt` on
 Linux; Windows runners expose LLVM's tools at `C:\Program Files\LLVM\bin`.
 Windows uses the Ninja generator in the `clang-tidy` job because it produces
-`compile_commands.json`, which the tidy target requires.
+`compile_commands.json`, which the tidy target requires. On Windows, the
+`build-and-test` job configures with `-DBUILD_SHARED_LIBS=OFF` to force zlib-ng
+to build static; its default shared build would otherwise require its DLL at
+test runtime (Catch2 test discovery exits with `0xc0000135`).
 
 ## Test suite
 

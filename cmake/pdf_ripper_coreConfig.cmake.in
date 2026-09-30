@@ -2,7 +2,16 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(io_ripper_core)
-find_dependency(zlib-ng)
+
+# zlib-ng is built in zlib-compatibility mode (ZLIB_COMPAT=ON), so its installed
+# CMake package is `zlib` and exports the ZLIB::ZLIB target. Recreate the plain
+# `zlib-ng` target referenced by the exported pdf_ripper_coreTargets.cmake so
+# it forwards to the real library.
+find_dependency(ZLIB)
+if(NOT TARGET zlib-ng)
+    add_library(zlib-ng INTERFACE IMPORTED)
+    set_property(TARGET zlib-ng PROPERTY INTERFACE_LINK_LIBRARIES ZLIB::ZLIB)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/pdf_ripper_coreTargets.cmake")
 

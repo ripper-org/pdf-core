@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 # Project configuration
 # ------------------------------------------------------------------------------
 project(pdf_ripper_core
-    VERSION 0.1.0
+    VERSION 1.0.0
     LANGUAGES CXX
 )
 
@@ -38,7 +38,7 @@ set(PDF_RIPPER_CORE_IO_CORE_GIT_REPOSITORY
 )
 
 set(PDF_RIPPER_CORE_IO_CORE_GIT_TAG
-    "main"
+    "v1.0.0"
     CACHE STRING
     "Git ref (tag/branch/commit) used when fetching io-core"
 )

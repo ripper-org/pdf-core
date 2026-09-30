@@ -1,8 +1,5 @@
 # Ripper PDF Core
 
-> [!WARNING]
-> **Work in progress** — This library is under active development and not yet production-ready. APIs may change until v1.0.
-
 **Low-level PDF parsing, manipulation, and creation library.**
 
 pdf-core is a C++23 library that gives developers precise control over PDF

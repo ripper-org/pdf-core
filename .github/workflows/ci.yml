@@ -41,12 +41,13 @@ jobs:
         run: cmake --build build --target pdf_ripper_core_format_check
 
   build-and-test:
-    name: Build & test (${{ matrix.os }})
+    name: Build & test (${{ matrix.os }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,19 +55,48 @@ jobs:
       # BUILD_SHARED_LIBS=OFF on Windows forces zlib-ng to build static; its
       # default shared build would otherwise require its DLL at test runtime
       # (Catch2 test discovery exits with 0xc0000135).
-      - name: Configure (Linux)
-        if: runner.os == 'Linux'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Configure (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_SHARED_LIBS=OFF
 
       - name: Build
-        run: cmake --build build --config Debug -j
+        run: cmake --build build --config ${{ matrix.build_type }} -j
 
       - name: Run tests
-        run: ctest --test-dir build -C Debug --output-on-failure
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+
+  install-consumer:
+    name: Installed-package consumer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify install and external consumer
+        run: ./scripts/verify_install.sh
+
+  sanitizers:
+    name: Sanitizers (ASan + UBSan)
+    runs-on: ubuntu-latest
+    env:
+      CXXFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer
+      LDFLAGS: -fsanitize=address,undefined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
 
   clang-tidy:
     name: clang-tidy (${{ matrix.os }})

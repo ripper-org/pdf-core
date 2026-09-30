@@ -15,20 +15,21 @@ ifneq ($(strip $(GENERATOR)),)
 CMAKE_CONFIGURE_ARGS += -G "$(GENERATOR)"
 endif
 
-.PHONY: help configure build test format format-check tidy clean rebuild install depclean
+.PHONY: help configure build test format format-check tidy clean rebuild install install-check depclean
 
 help:
 	@echo "Available targets:"
-	@echo "  make configure    - Configure CMake in $(BUILD_DIR)"
-	@echo "  make build        - Configure and build library + tests"
-	@echo "  make test         - Build and run CTest suite"
-	@echo "  make format       - Apply clang-format to project sources"
-	@echo "  make format-check - Verify clang-format compliance"
-	@echo "  make tidy         - Run clang-tidy static analysis"
-	@echo "  make install      - Install from $(BUILD_DIR)"
-	@echo "  make clean        - Remove $(BUILD_DIR) and $(DEPS_DIR)"
-	@echo "  make rebuild      - Clean then build"
-	@echo "  make depclean     - Remove $(DEPS_DIR) only"
+	@echo "  make configure     - Configure CMake in $(BUILD_DIR)"
+	@echo "  make build         - Configure and build library + tests"
+	@echo "  make test          - Build and run CTest suite"
+	@echo "  make format        - Apply clang-format to project sources"
+	@echo "  make format-check  - Verify clang-format compliance"
+	@echo "  make tidy          - Run clang-tidy static analysis"
+	@echo "  make install       - Install from $(BUILD_DIR)"
+	@echo "  make install-check - Install to a temp prefix and verify an external CMake consumer"
+	@echo "  make clean         - Remove $(BUILD_DIR) and $(DEPS_DIR)"
+	@echo "  make rebuild       - Clean then build"
+	@echo "  make depclean      - Remove $(DEPS_DIR) only"
 	@echo "Variables: BUILD_DIR, BUILD_TYPE, GENERATOR, DEPS_DIR, FORMAT_TARGET, FORMAT_CHECK_TARGET, TIDY_TARGET"
 
 configure:
@@ -55,6 +56,9 @@ tidy: configure
 
 install: build
 	$(CMAKE) --install $(BUILD_DIR)
+
+install-check:
+	./scripts/verify_install.sh
 
 clean:
 	$(CMAKE) -E rm -rf $(BUILD_DIR) $(DEPS_DIR)
