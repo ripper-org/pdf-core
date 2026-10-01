@@ -68,8 +68,10 @@ override their repository or tag with:
 
 `clang-format` is installed via `pip install clang-format==22.1.0` (pinned to
 match the LLVM toolchain the project is formatted against — apt's v18 on Ubuntu
-24.04 disagrees with v22 formatting). `clang-tidy` is installed via `apt` on
-Linux; Windows runners expose LLVM's tools at `C:\Program Files\LLVM\bin`.
+24.04 disagrees with v22 formatting). `clang-tidy` is pinned to LLVM 22.1.0 on
+Linux via the apt.llvm.org installer for the same reason; apt's v18
+clang-tidy can hang on template-heavy translation units under `clang-analyzer`
+checks. Windows runners expose LLVM's tools at `C:\Program Files\LLVM\bin`.
 Windows uses the Ninja generator in the `clang-tidy` job because it produces
 `compile_commands.json`, which the tidy target requires. On Windows, the
 `build-and-test` job configures with `-DBUILD_SHARED_LIBS=OFF` to force zlib-ng

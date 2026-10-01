@@ -17,6 +17,7 @@ jobs:
   format-check:
     name: Format check (clang-format)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,6 +44,7 @@ jobs:
   build-and-test:
     name: Build & test (${{ matrix.os }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +74,7 @@ jobs:
   install-consumer:
     name: Installed-package consumer
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,6 +85,7 @@ jobs:
   sanitizers:
     name: Sanitizers (ASan + UBSan)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       CXXFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer
       LDFLAGS: -fsanitize=address,undefined
@@ -101,6 +105,7 @@ jobs:
   clang-tidy:
     name: clang-tidy (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -113,9 +118,18 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install clang-tidy
+      # clang-tidy is pinned to LLVM 22.1.0 to match the formatting toolchain
+      # (see the format-check job). apt's clang-tidy (v18 on Ubuntu 24.04)
+      # hangs on template-heavy translation units under clang-analyzer checks,
+      # which can stall the static-analysis job for hours.
+      - name: Install clang-tidy 22 (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+        run: |
+          curl -LsS https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 22
+          sudo ln -sf /usr/lib/llvm-22/bin/clang-tidy /usr/local/bin/clang-tidy
+          clang-tidy --version
 
       - name: Add LLVM to PATH (Windows)
         if: runner.os == 'Windows'
