@@ -3,6 +3,11 @@
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
+#include "ripper/pdf/core/util/checked.hpp"
+
+#include <cstdint>
+#include <limits>
+#include <string>
 
 namespace ripper::pdf::core
 {
@@ -19,14 +24,19 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
         throw parse_exception{"Object is not an xref stream (/Type /XRef required)"};
 
     const auto* size_ptr = dict.get_number("Size");
-    if (size_ptr == nullptr || size_ptr->as_integer() <= 0)
+    if (size_ptr == nullptr || !size_ptr->is_integer() || size_ptr->as_integer() <= 0)
         throw parse_exception{"Xref stream missing required /Size"};
 
-    const auto size = static_cast<std::uint32_t>(size_ptr->as_integer());
+    const auto size =
+        checked::to_unsigned<std::uint32_t>(size_ptr->as_integer(), "Xref stream /Size");
     const auto widths = parse_w(stream_obj);
     const auto ranges = parse_index(stream_obj, size);
 
-    const auto entry_size = widths.w0 + widths.w1 + widths.w2;
+    const auto entry_size =
+        checked::add(checked::add(static_cast<std::size_t>(widths.w0),
+                                  static_cast<std::size_t>(widths.w1), "Xref stream /W"),
+                     static_cast<std::size_t>(widths.w2), "Xref stream /W");
+
     if (entry_size == 0)
         throw parse_exception{"Xref stream entry size is zero"};
 
@@ -35,9 +45,13 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
 
     for (const auto& range : ranges)
     {
+        const auto range_end = static_cast<std::uint64_t>(range.first) + range.count;
+        if (range_end > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()) + 1U)
+            throw parse_exception{"Xref stream /Index range overflows the object number space"};
+
         for (std::uint32_t i = 0; i < range.count; ++i)
         {
-            if (byte_offset + entry_size > content.size())
+            if (byte_offset > content.size() || entry_size > content.size() - byte_offset)
                 throw parse_exception{"Xref stream data truncated"};
 
             const auto entry_data = content.subspan(byte_offset, entry_size);
@@ -49,6 +63,16 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
 
             const auto obj_num = range.first + i;
 
+            if (type_raw > 2)
+            {
+                // Per §7.5.8, entries with an unknown type are treated as null.
+                // Record a terminal free entry without trusting the raw fields.
+                section.add_entry(
+                    cross_reference_entry::make_free(indirect_reference{obj_num, 0}, 0, 0));
+                byte_offset += entry_size;
+                continue;
+            }
+
             const auto type = static_cast<xref_entry_type>(type_raw);
 
             switch (type)
@@ -56,28 +80,31 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
                 case xref_entry_type::free:
                 {
                     section.add_entry(cross_reference_entry::make_free(
-                        indirect_reference{obj_num, 0}, static_cast<std::uint32_t>(field1),
-                        static_cast<std::uint16_t>(field2)));
+                        indirect_reference{obj_num, 0},
+                        checked::to_unsigned<std::uint32_t>(field1, "Xref stream free-list entry"),
+                        checked::to_unsigned<std::uint16_t>(field2,
+                                                            "Xref stream free generation")));
                     break;
                 }
                 case xref_entry_type::uncompressed:
                 {
                     section.add_entry(cross_reference_entry{
-                        indirect_reference{obj_num, static_cast<std::uint16_t>(field2)}, field1,
-                        true});
+                        indirect_reference{obj_num, checked::to_unsigned<std::uint16_t>(
+                                                        field2, "Xref stream generation number")},
+                        field1, true});
                     break;
                 }
                 case xref_entry_type::compressed:
                 {
-                    section.add_entry(cross_reference_entry{indirect_reference{obj_num, 0},
-                                                            static_cast<std::uint32_t>(field1),
-                                                            static_cast<std::uint32_t>(field2)});
+                    section.add_entry(cross_reference_entry{
+                        indirect_reference{obj_num, 0},
+                        checked::to_unsigned<std::uint32_t>(field1,
+                                                            "Xref stream object stream number"),
+                        checked::to_unsigned<std::uint32_t>(field2,
+                                                            "Xref stream object stream index")});
                     break;
                 }
                 default:
-                    section.add_entry(cross_reference_entry::make_free(
-                        indirect_reference{obj_num, 0}, static_cast<std::uint32_t>(field1),
-                        static_cast<std::uint16_t>(field2)));
                     break;
             }
 
@@ -92,20 +119,30 @@ cross_reference_stream_parser::column_widths
 cross_reference_stream_parser::parse_w(const stream_object& stream_obj)
 {
     const auto* w = stream_obj.dictionary().get_array("W");
-    if (w == nullptr || w->size() < 3)
-        throw parse_exception{"Xref stream missing or invalid /W array"};
+    if (w == nullptr || w->size() != 3)
+        throw parse_exception{"Xref stream /W array must contain exactly three integers"};
 
     column_widths result;
-    const auto* w0 = w->at(0).as_number();
-    const auto* w1 = w->at(1).as_number();
-    const auto* w2 = w->at(2).as_number();
 
-    if (w0 == nullptr || w1 == nullptr || w2 == nullptr)
-        throw parse_exception{"/W array entries must be integers"};
+    const auto width_at = [&](std::size_t index, const char* name) -> std::uint32_t
+    {
+        const auto* number = w->at(index).as_number();
+        if (number == nullptr || !number->is_integer())
+            throw parse_exception{std::string{"Xref stream /W "} + name + " must be an integer"};
 
-    result.w0 = static_cast<std::uint32_t>(w0->as_integer());
-    result.w1 = static_cast<std::uint32_t>(w1->as_integer());
-    result.w2 = static_cast<std::uint32_t>(w2->as_integer());
+        const auto value = number->as_integer();
+        if (value < 0)
+            throw parse_exception{std::string{"Xref stream /W "} + name + " must not be negative"};
+
+        if (value > 8)
+            throw parse_exception{std::string{"Xref stream /W "} + name + " exceeds 8 bytes"};
+
+        return static_cast<std::uint32_t>(value);
+    };
+
+    result.w0 = width_at(0, "type width");
+    result.w1 = width_at(1, "field 1 width");
+    result.w2 = width_at(2, "field 2 width");
 
     return result;
 }
@@ -124,16 +161,22 @@ cross_reference_stream_parser::parse_index(const stream_object& stream_obj, std:
         throw parse_exception{"/Index array must have an even number of elements"};
 
     std::vector<subsection_range> ranges;
+    ranges.reserve(index->size() / 2);
+
     for (std::size_t i = 0; i < index->size(); i += 2)
     {
         const auto* first = index->at(i).as_number();
         const auto* count = index->at(i + 1).as_number();
 
-        if (first == nullptr || count == nullptr)
+        if (first == nullptr || count == nullptr || !first->is_integer() || !count->is_integer())
             throw parse_exception{"/Index array entries must be integers"};
 
-        ranges.push_back({static_cast<std::uint32_t>(first->as_integer()),
-                          static_cast<std::uint32_t>(count->as_integer())});
+        if (first->as_integer() < 0 || count->as_integer() < 0)
+            throw parse_exception{"/Index array entries must not be negative"};
+
+        ranges.push_back(
+            {checked::to_unsigned<std::uint32_t>(first->as_integer(), "/Index first object number"),
+             checked::to_unsigned<std::uint32_t>(count->as_integer(), "/Index object count")});
     }
 
     return ranges;
@@ -144,6 +187,8 @@ std::uint64_t cross_reference_stream_parser::read_field(std::span<const std::byt
                                                         std::size_t offset, std::uint32_t width)
 // NOLINTEND(bugprone-easily-swappable-parameters)
 {
+    checked::require_range(offset, width, data.size(), "Xref stream field");
+
     std::uint64_t value = 0;
     for (std::uint32_t i = 0; i < width; ++i)
     {

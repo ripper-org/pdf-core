@@ -78,7 +78,7 @@ compressed_cross_reference_table_parser::parse(document& doc, std::string_view c
     if (os == nullptr)
         throw parse_exception{"Xref stream indirect object is not a stream"};
 
-    (void)os->content();
+    (void)os->content(doc.limits());
 
     auto section = cross_reference_stream_parser::parse(*os);
 

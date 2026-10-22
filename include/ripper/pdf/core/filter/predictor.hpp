@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <cstddef>
 #include <span>
@@ -28,5 +29,6 @@ namespace ripper::pdf::core
 /// @throws parse_exception if the predictor value is unsupported, parameters
 ///         are invalid, or the input is truncated.
 [[nodiscard]] std::vector<std::byte> apply_predictor(std::span<const std::byte> data,
-                                                     const dictionary_object& params);
+                                                     const dictionary_object& params,
+                                                     const resource_limits& limits = {});
 } // namespace ripper::pdf::core

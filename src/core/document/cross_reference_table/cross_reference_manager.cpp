@@ -3,6 +3,7 @@
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
+#include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -118,7 +119,12 @@ void cross_reference_manager::mark_deleted(const indirect_reference& ref) noexce
     if (ref.object_number() == 0)
         return;
 
-    auto& active = active_section();
+    // This method is noexcept; an empty history (for example a moved-from
+    // manager) has no active section to update, so treat it as a no-op.
+    if (revisions_ == nullptr || revisions_->empty())
+        return;
+
+    auto& active = revisions_->back().section();
 
     if (auto* active_entry = active.find(ref.object_number()))
     {
@@ -191,6 +197,9 @@ std::uint32_t cross_reference_manager::next_object_number() const noexcept
 
 cross_reference_section& cross_reference_manager::active_section()
 {
+    if (revisions_->empty())
+        throw logic_exception{"Cross-reference manager has no active revision"};
+
     return revisions_->back().section();
 }
 } // namespace ripper::pdf::core

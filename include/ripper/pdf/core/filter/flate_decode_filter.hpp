@@ -13,6 +13,10 @@ public:
            const dictionary_object* params = nullptr) const override;
 
     [[nodiscard]] std::vector<std::byte>
+    decode_with_limits(std::span<const std::byte> input, const dictionary_object* params,
+                       const resource_limits& limits) const override;
+
+    [[nodiscard]] std::vector<std::byte>
     encode(std::span<const std::byte> input,
            const dictionary_object* params = nullptr) const override;
 };

@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/trailer/trailer.hpp"
+#include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <utility>
 
@@ -10,6 +11,42 @@ namespace ripper::pdf::core
 revision_manager::revision_manager(std::deque<revision> revisions)
     : revisions_{std::move(revisions)}, xref_view_{revisions_}, trailer_view_{revisions_}
 {
+}
+
+// The compiled views store a pointer to `revisions_`. Copying or moving the
+// members without rebinding them would leave the destination's views referring
+// to the source manager's storage.
+
+revision_manager::revision_manager(const revision_manager& other)
+    : revisions_{other.revisions_}, xref_view_{revisions_}, trailer_view_{revisions_}
+{
+}
+
+revision_manager::revision_manager(revision_manager&& other) noexcept
+    : revisions_{std::move(other.revisions_)}, xref_view_{revisions_}, trailer_view_{revisions_}
+{
+}
+
+revision_manager& revision_manager::operator=(const revision_manager& other)
+{
+    if (this != &other)
+    {
+        revision_manager copy{other};
+        revisions_.swap(copy.revisions_);
+    }
+
+    return *this;
+}
+
+revision_manager& revision_manager::operator=(revision_manager&& other) noexcept
+{
+    if (this != &other)
+    {
+        revision_manager moved{std::move(other)};
+        revisions_.swap(moved.revisions_);
+    }
+
+    return *this;
 }
 
 std::deque<revision>& revision_manager::all() noexcept
@@ -24,11 +61,17 @@ const std::deque<revision>& revision_manager::all() const noexcept
 
 revision& revision_manager::current()
 {
+    if (revisions_.empty())
+        throw logic_exception{"Revision history has no current revision"};
+
     return revisions_.back();
 }
 
-const revision& revision_manager::current() const noexcept
+const revision& revision_manager::current() const
 {
+    if (revisions_.empty())
+        throw logic_exception{"Revision history has no current revision"};
+
     return revisions_.back();
 }
 

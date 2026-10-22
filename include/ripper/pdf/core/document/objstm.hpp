@@ -50,9 +50,12 @@ public:
     ///
     /// Parses the object stream header to locate the object at the given index
     /// and returns its byte range. Returns `std::nullopt` if the index is
-    /// out of bounds or the stream is malformed.
+    /// out of bounds.
     ///
     /// The stream must already be decoded (`content()` called).
+    ///
+    /// @throws parse_exception if the stream header is malformed or contains
+    ///         out-of-bounds or descending byte ranges.
     [[nodiscard]] std::optional<object_range> object_offset(std::uint32_t index) const;
 
     /// Resolves and returns all contained objects.

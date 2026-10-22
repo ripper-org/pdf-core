@@ -6,6 +6,7 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 #include "ripper/pdf/core/parser/value_parsing.hpp"
+#include "ripper/pdf/core/util/checked.hpp"
 
 #include <cstring>
 #include <string_view>
@@ -18,7 +19,7 @@ indirect_object default_object_parser::parse(document& doc, indirect_reference r
 {
     pdf_lexer lexer{content_sv};
 
-    auto content = parse_value(lexer);
+    auto content = parse_value(lexer, doc.limits().max_parse_depth);
 
     // After parsing the actual content and obtaining the proper object type, we must
     // now check if the content contains a `stream` keyword. By default, we only allow
@@ -60,14 +61,15 @@ indirect_object default_object_parser::parse(document& doc, indirect_reference r
             std::size_t end_of_stream = std::string_view::npos;
 
             const auto* length_ptr = dict->get_number("Length");
-            if (length_ptr != nullptr && length_ptr->as_integer() >= 0)
+            if (length_ptr != nullptr && length_ptr->is_integer() && length_ptr->as_integer() >= 0)
             {
-                const auto length = static_cast<std::size_t>(length_ptr->as_integer());
-                const auto length_end = stream_bytes_start_offset + length;
+                const auto length =
+                    checked::to_unsigned<std::size_t>(length_ptr->as_integer(), "Stream /Length");
 
-                // Clamp to available content in case /Length overruns
-                if (length_end <= content_sv.size())
+                // Clamp to available content in case /Length overruns.
+                if (length <= content_sv.size() - stream_bytes_start_offset)
                 {
+                    const auto length_end = stream_bytes_start_offset + length;
                     // Look for "endstream" at the expected boundary
                     std::size_t check = length_end;
                     while (check < content_sv.size() &&
@@ -88,7 +90,12 @@ indirect_object default_object_parser::parse(document& doc, indirect_reference r
             if (end_of_stream == std::string_view::npos)
             {
                 end_of_stream = content_sv.rfind("endstream");
-                if (end_of_stream != std::string_view::npos)
+
+                // A match before the payload start cannot delimit this stream;
+                // treat it as absent instead of allowing the subtraction below
+                // to underflow.
+                if (end_of_stream != std::string_view::npos &&
+                    end_of_stream >= stream_bytes_start_offset)
                 {
                     while (end_of_stream > stream_bytes_start_offset &&
                            (content_sv[end_of_stream - 1] == '\r' ||

@@ -91,6 +91,16 @@ bool document::has_parser() const
     return static_cast<bool>(parser_);
 }
 
+void document::set_limits(const resource_limits& limits) noexcept
+{
+    limits_ = limits;
+}
+
+const resource_limits& document::limits() const noexcept
+{
+    return limits_;
+}
+
 bool document::has_writer() const
 {
     return static_cast<bool>(writer_);
@@ -174,6 +184,42 @@ indirect_object* document::resolve_object(indirect_reference ref)
 
     if (!has_parser())
         throw logic_exception{"No parser available to resolve unresolved indirect_object"};
+
+    // Guard against recursive resolution. A compressed xref entry can point at
+    // an object stream that (directly or transitively) contains the entry
+    // itself; without this guard a small malformed document exhausts the stack.
+    if (resolving_.contains(ref))
+    {
+        throw parse_exception{"Recursive resolution of indirect object " +
+                              std::to_string(ref.object_number())};
+    }
+
+    if (resolving_.size() >= limits_.max_resolution_depth)
+        throw parse_exception{"Maximum indirect object resolution depth exceeded"};
+
+    struct resolution_guard
+    {
+        resolution_guard(std::unordered_set<indirect_reference>& resolving_set,
+                         indirect_reference resolved_ref)
+            : resolving{resolving_set}, ref{resolved_ref}
+        {
+        }
+
+        resolution_guard(const resolution_guard&) = delete;
+        resolution_guard& operator=(const resolution_guard&) = delete;
+        resolution_guard(resolution_guard&&) = delete;
+        resolution_guard& operator=(resolution_guard&&) = delete;
+
+        ~resolution_guard()
+        {
+            resolving.erase(ref);
+        }
+
+        std::unordered_set<indirect_reference>& resolving;
+        indirect_reference ref;
+    } guard{resolving_, ref};
+
+    resolving_.insert(ref);
 
     auto parsed = parser_->parse_object(ref);
 

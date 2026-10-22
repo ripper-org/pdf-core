@@ -24,6 +24,23 @@ public:
     /// reversing before constructing the manager.
     explicit revision_manager(std::deque<revision> revisions);
 
+    /// Copies the revision history.
+    ///
+    /// The copied entries deep-clone resolved indirect objects, which retain
+    /// their original identity (including the owning document pointer).
+    revision_manager(const revision_manager& other);
+
+    /// Moves the revision history. The source manager is left empty.
+    revision_manager(revision_manager&& other) noexcept;
+
+    /// Copies the revision history into this manager.
+    revision_manager& operator=(const revision_manager& other);
+
+    /// Moves the revision history into this manager. The source is left empty.
+    revision_manager& operator=(revision_manager&& other) noexcept;
+
+    ~revision_manager() = default;
+
     /// Returns a mutable reference to the ordered list of all revisions (oldest first).
     [[nodiscard]] std::deque<revision>& all() noexcept;
 
@@ -31,10 +48,16 @@ public:
     [[nodiscard]] const std::deque<revision>& all() const noexcept;
 
     /// Returns a mutable reference to the current (newest) revision.
+    ///
+    /// @throws logic_exception if the manager has no revisions (for example,
+    ///         after being moved from).
     [[nodiscard]] revision& current();
 
     /// Returns a const reference to the current (newest) revision.
-    [[nodiscard]] const revision& current() const noexcept;
+    ///
+    /// @throws logic_exception if the manager has no revisions (for example,
+    ///         after being moved from).
+    [[nodiscard]] const revision& current() const;
 
     /// Append a new revision as the most recent update.
     void push(class revision r);
@@ -64,6 +87,7 @@ public:
 
 private:
     // The list of revisions in chronological order (oldest first, newest last).
+    // Must be declared before the views, which bind to it in their constructors.
     std::deque<revision> revisions_;
 
     // Compiled cross-reference manager view over all revisions.

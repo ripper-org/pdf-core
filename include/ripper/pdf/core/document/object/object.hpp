@@ -8,6 +8,7 @@
 #include "ripper/pdf/core/document/object/null_object.hpp"
 #include "ripper/pdf/core/document/object/number_object.hpp"
 #include "ripper/pdf/core/document/object/string_object.hpp"
+#include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -188,8 +189,10 @@ public:
     /// static filter_manager. After this call, stream().data() returns decoded
     /// bytes and raw bytes are lost.
     /// If no /Filter is present, data is inherently decoded (no-op).
-    /// @throws parse_exception if /Filter is unknown.
-    [[nodiscard]] std::span<const std::byte> content();
+    ///
+    /// @param limits bounds the decoded output size; defaults are used when omitted.
+    /// @throws parse_exception if /Filter is unknown or the output exceeds `limits`.
+    [[nodiscard]] std::span<const std::byte> content(const resource_limits& limits = {});
 
     /// Returns the current stream data as-is. Does not trigger decode.
     /// Before content(): returns raw bytes.
@@ -262,7 +265,10 @@ public:
     explicit object(number_object value) noexcept;
 
     /// Construct a string PDF object.
-    explicit object(std::string value) noexcept;
+    ///
+    /// May throw `std::bad_alloc`; allocation failures are intentionally not
+    /// converted into termination.
+    explicit object(std::string value);
 
     /// Construct a string PDF object.
     explicit object(string_object value) noexcept;

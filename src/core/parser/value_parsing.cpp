@@ -64,6 +64,18 @@ namespace
     return decoded;
 }
 
+[[nodiscard]] object parse_value_impl(pdf_lexer& lexer, std::size_t depth, std::size_t max_depth);
+[[nodiscard]] array_object parse_array_impl(pdf_lexer& lexer, std::size_t depth,
+                                            std::size_t max_depth);
+[[nodiscard]] dictionary_object parse_dictionary_impl(pdf_lexer& lexer, std::size_t depth,
+                                                      std::size_t max_depth);
+
+void check_depth(std::size_t depth, std::size_t max_depth)
+{
+    if (depth > max_depth)
+        throw parse_exception{"Maximum parsing depth exceeded"};
+}
+
 } // namespace
 
 indirect_reference parse_indirect_reference(pdf_lexer& lexer)
@@ -87,8 +99,13 @@ indirect_reference parse_indirect_reference(pdf_lexer& lexer)
                               static_cast<std::uint16_t>(*gen_num)};
 }
 
-array_object parse_array(pdf_lexer& lexer)
+namespace
 {
+
+array_object parse_array_impl(pdf_lexer& lexer, std::size_t depth, std::size_t max_depth)
+{
+    check_depth(depth, max_depth);
+
     array_object arr;
     while (true)
     {
@@ -103,14 +120,16 @@ array_object parse_array(pdf_lexer& lexer)
         if (p.type == lexer_token_type::eof)
             throw parse_exception{"Unexpected EOF inside array"};
 
-        auto v = parse_value(lexer);
+        auto v = parse_value_impl(lexer, depth, max_depth);
         arr.push_back(std::move(v));
     }
     return arr;
 }
 
-dictionary_object parse_dictionary(pdf_lexer& lexer)
+dictionary_object parse_dictionary_impl(pdf_lexer& lexer, std::size_t depth, std::size_t max_depth)
 {
+    check_depth(depth, max_depth);
+
     dictionary_object dict;
     while (true)
     {
@@ -132,15 +151,17 @@ dictionary_object parse_dictionary(pdf_lexer& lexer)
         }
 
         const auto key = lexer.next();
-        auto val = parse_value(lexer);
+        auto val = parse_value_impl(lexer, depth, max_depth);
 
         dict.set(text::unescape_name(key.lexeme), std::move(val));
     }
     return dict;
 }
 
-object parse_value(pdf_lexer& lexer)
+object parse_value_impl(pdf_lexer& lexer, std::size_t depth, std::size_t max_depth)
 {
+    check_depth(depth, max_depth);
+
     auto p = lexer.peek();
 
     if (p.type == lexer_token_type::integer)
@@ -220,7 +241,7 @@ object parse_value(pdf_lexer& lexer)
     {
         (void)lexer.next();
 
-        auto arr = parse_array(lexer);
+        auto arr = parse_array_impl(lexer, depth + 1, max_depth);
         return object{std::move(arr)};
     }
 
@@ -228,7 +249,7 @@ object parse_value(pdf_lexer& lexer)
     {
         (void)lexer.next();
 
-        auto dict = parse_dictionary(lexer);
+        auto dict = parse_dictionary_impl(lexer, depth + 1, max_depth);
         return object{std::move(dict)};
     }
 
@@ -236,6 +257,23 @@ object parse_value(pdf_lexer& lexer)
     lexer.skip_value();
 
     return object{};
+}
+
+} // namespace
+
+array_object parse_array(pdf_lexer& lexer, std::size_t max_depth)
+{
+    return parse_array_impl(lexer, 0, max_depth);
+}
+
+dictionary_object parse_dictionary(pdf_lexer& lexer, std::size_t max_depth)
+{
+    return parse_dictionary_impl(lexer, 0, max_depth);
+}
+
+object parse_value(pdf_lexer& lexer, std::size_t max_depth)
+{
+    return parse_value_impl(lexer, 0, max_depth);
 }
 
 std::string_view extract_object_body(std::string_view content)
@@ -265,6 +303,9 @@ std::string_view extract_object_body(std::string_view content)
     const auto endobj_pos = text::find_endobj(content);
     if (endobj_pos == std::string_view::npos)
         throw parse_exception{"Missing endobj keyword"};
+
+    if (endobj_pos < value_start)
+        throw parse_exception{"Malformed indirect object: endobj precedes object content"};
 
     return content.substr(value_start, endobj_pos - value_start);
 }

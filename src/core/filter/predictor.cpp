@@ -1,6 +1,7 @@
 #include "ripper/pdf/core/filter/predictor.hpp"
 
 #include "ripper/pdf/core/exceptions/exception.hpp"
+#include "ripper/pdf/core/util/checked.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -11,12 +12,17 @@ namespace
 {
 
 [[nodiscard]] std::uint64_t parameter(const dictionary_object& params, const std::string& key,
-                                      std::uint64_t fallback) noexcept
+                                      std::uint64_t fallback)
 {
     const auto* number = params.get_number(key);
-    if (number == nullptr || number->as_integer() < 0)
+    if (number == nullptr)
         return fallback;
-    return static_cast<std::uint64_t>(number->as_integer());
+
+    const auto value = number->as_integer();
+    if (value < 0)
+        throw parse_exception{"Predictor parameter /" + key + " must not be negative"};
+
+    return static_cast<std::uint64_t>(value);
 }
 
 [[nodiscard]] std::size_t paeth_predictor(std::size_t left, std::size_t up,
@@ -41,14 +47,30 @@ namespace
 
 [[nodiscard]] std::vector<std::byte> apply_png_predictor(std::span<const std::byte> input,
                                                          std::size_t columns, std::size_t colors,
-                                                         std::size_t bits_per_component)
+                                                         std::size_t bits_per_component,
+                                                         const resource_limits& limits)
 {
+    const std::size_t samples_per_pixel =
+        checked::multiply(colors, bits_per_component, "PNG predictor");
     const std::size_t bytes_per_pixel =
-        std::max<std::size_t>(1, (colors * bits_per_component + 7) / 8);
-    const std::size_t row_length = (columns * colors * bits_per_component + 7) / 8;
+        std::max<std::size_t>(1, checked::add(samples_per_pixel, 7, "PNG predictor") / 8);
+
+    const std::size_t row_bits = checked::multiply(
+        checked::multiply(columns, colors, "PNG predictor"), bits_per_component, "PNG predictor");
+    const std::size_t row_length = checked::add(row_bits, 7, "PNG predictor") / 8;
 
     if (row_length == 0 || bytes_per_pixel == 0)
         throw parse_exception{"Invalid PNG predictor parameters"};
+
+    if (row_length > limits.max_predictor_row_bytes)
+        throw parse_exception{"PNG predictor row exceeds the configured size limit"};
+
+    if (input.size() > limits.max_decoded_stream_bytes)
+        throw parse_exception{"Decoded stream exceeds the configured size limit"};
+
+    const std::size_t stride = checked::add(row_length, 1, "PNG predictor");
+    if (input.size() % stride != 0)
+        throw parse_exception{"Truncated PNG predictor row"};
 
     std::vector<std::byte> output;
     output.reserve(input.size());
@@ -61,9 +83,6 @@ namespace
 
     while (in_pos < input_size)
     {
-        if (in_pos + 1 > input_size || in_pos + 1 + row_length > input_size)
-            throw parse_exception{"Truncated PNG predictor row"};
-
         const auto tag = std::to_integer<unsigned char>(input[in_pos]);
         ++in_pos;
 
@@ -130,14 +149,18 @@ namespace
 }
 
 [[nodiscard]] std::vector<std::byte> apply_tiff_predictor(std::span<const std::byte> input,
-                                                          std::size_t columns, std::size_t colors)
+                                                          std::size_t columns, std::size_t colors,
+                                                          const resource_limits& limits)
 {
     if (colors == 0 || columns == 0)
         throw parse_exception{"Invalid TIFF predictor parameters"};
 
-    const std::size_t row_length = columns * colors;
+    const std::size_t row_length = checked::multiply(columns, colors, "TIFF predictor");
     if (row_length == 0)
         throw parse_exception{"Invalid TIFF predictor row length"};
+
+    if (input.size() > limits.max_decoded_stream_bytes)
+        throw parse_exception{"Decoded stream exceeds the configured size limit"};
 
     if (input.size() % row_length != 0)
         throw parse_exception{"TIFF predictor data is not an integral number of rows"};
@@ -170,7 +193,8 @@ bool has_predictor(const dictionary_object* params)
 }
 
 std::vector<std::byte> apply_predictor(std::span<const std::byte> data,
-                                       const dictionary_object& params)
+                                       const dictionary_object& params,
+                                       const resource_limits& limits)
 {
     const auto predictor = parameter(params, "Predictor", 1);
     if (predictor == 1)
@@ -186,8 +210,9 @@ std::vector<std::byte> apply_predictor(std::span<const std::byte> data,
         {
             if (bits_per_component != 8)
                 throw parse_exception{"TIFF predictor requires 8-bit samples"};
-            return apply_tiff_predictor(data, static_cast<std::size_t>(columns),
-                                        static_cast<std::size_t>(colors));
+            return apply_tiff_predictor(data, checked::to_unsigned<std::size_t>(columns, "Columns"),
+                                        checked::to_unsigned<std::size_t>(colors, "Colors"),
+                                        limits);
         }
         case 10:
         case 11:
@@ -195,9 +220,10 @@ std::vector<std::byte> apply_predictor(std::span<const std::byte> data,
         case 13:
         case 14:
         case 15:
-            return apply_png_predictor(data, static_cast<std::size_t>(columns),
-                                       static_cast<std::size_t>(colors),
-                                       static_cast<std::size_t>(bits_per_component));
+            return apply_png_predictor(
+                data, checked::to_unsigned<std::size_t>(columns, "Columns"),
+                checked::to_unsigned<std::size_t>(colors, "Colors"),
+                checked::to_unsigned<std::size_t>(bits_per_component, "BitsPerComponent"), limits);
         default:
             throw parse_exception{"Unsupported stream predictor value"};
     }

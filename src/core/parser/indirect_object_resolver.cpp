@@ -8,6 +8,7 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 #include "ripper/pdf/core/parser/value_parsing.hpp"
+#include "ripper/pdf/core/util/checked.hpp"
 #include "ripper/pdf/core/util/text.hpp"
 
 #include <cstddef>
@@ -162,7 +163,7 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     // `endobj`-like sequences. Falls back to the keyword boundary on any error.
     try
     {
-        auto value = parse_value(lexer);
+        auto value = parse_value(lexer, document_.limits().max_parse_depth);
         if (value.is_dictionary())
         {
             auto peek_result = lexer.peek();
@@ -183,29 +184,35 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
                 }
 
                 const auto* length_ptr = value.as_dictionary()->get_number("Length");
-                if (length_ptr != nullptr && length_ptr->as_integer() >= 0)
+                if (length_ptr != nullptr && length_ptr->is_integer() &&
+                    length_ptr->as_integer() >= 0)
                 {
-                    const auto length = static_cast<std::size_t>(length_ptr->as_integer());
-                    const auto length_end = data_start + length;
+                    const auto length = checked::to_unsigned<std::size_t>(length_ptr->as_integer(),
+                                                                          "Stream /Length");
 
-                    std::size_t pos = length_end;
-                    while (pos < source.size() &&
-                           (source[pos] == '\r' || source[pos] == '\n' || source[pos] == ' '))
+                    // Only refine when /Length describes a range inside the buffer.
+                    if (data_start <= source.size() && length <= source.size() - data_start)
                     {
-                        ++pos;
-                    }
-
-                    if (pos + 9 <= source.size() && source.substr(pos, 9) == "endstream")
-                    {
-                        pos += 9;
+                        std::size_t pos = data_start + length;
                         while (pos < source.size() &&
                                (source[pos] == '\r' || source[pos] == '\n' || source[pos] == ' '))
                         {
                             ++pos;
                         }
 
-                        if (pos + 6 <= source.size() && source.substr(pos, 6) == "endobj")
-                            endobj_pos = pos;
+                        if (source.size() - pos >= 9 && source.substr(pos, 9) == "endstream")
+                        {
+                            pos += 9;
+                            while (
+                                pos < source.size() &&
+                                (source[pos] == '\r' || source[pos] == '\n' || source[pos] == ' '))
+                            {
+                                ++pos;
+                            }
+
+                            if (source.size() - pos >= 6 && source.substr(pos, 6) == "endobj")
+                                endobj_pos = pos;
+                        }
                     }
                 }
             }
@@ -217,6 +224,9 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     catch (const parse_exception&)
     {
     }
+
+    if (endobj_pos < value_start)
+        throw parse_exception{"Malformed indirect object: endobj precedes object content"};
 
     return source.substr(value_start, endobj_pos - value_start);
 }
@@ -238,7 +248,7 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
         throw parse_exception{"Object stream " + std::to_string(objstm_num) + " is not a stream"};
 
     // Decode if needed
-    (void)os->content();
+    (void)os->content(document_.limits());
 
     // Find the byte range for the requested object
     objstm view{*objstm_obj};
@@ -249,8 +259,7 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
 
     // Copy the bytes
     auto raw = os->raw();
-    if (range->offset + range->length > raw.size())
-        throw parse_exception{"Object stream byte range out of bounds"};
+    checked::require_range(range->offset, range->length, raw.size(), "Object stream byte range");
 
     std::string result(range->length, '\0');
     for (std::size_t i = 0; i < range->length; ++i)

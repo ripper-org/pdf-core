@@ -13,9 +13,11 @@
 #include "ripper/pdf/core/document_save_strategy/save_strategy_type.hpp"
 #include "ripper/pdf/core/parser/parser.hpp"
 #include "ripper/pdf/core/serializer/serializer.hpp"
+#include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <filesystem>
 #include <memory>
+#include <unordered_set>
 
 namespace ripper::pdf::core
 {
@@ -49,6 +51,19 @@ public:
     /// existing PDF documents.
     explicit document(std::unique_ptr<ripper::io::core::reader> reader,
                       std::unique_ptr<ripper::io::core::writer> writer);
+
+    /// Documents own objects that store a back-reference to their document.
+    ///
+    /// Moving or copying the facade would leave those back-references pointing
+    /// at the original (or a destroyed) instance, so both operations are
+    /// disabled. Use `std::unique_ptr<document>` when movable ownership is
+    /// required.
+    document(const document&) = delete;
+    document& operator=(const document&) = delete;
+    document(document&&) = delete;
+    document& operator=(document&&) = delete;
+
+    ~document() = default;
 
     /// Open an existing document at `path` in read mode.
     ///
@@ -94,6 +109,12 @@ public:
 
     /// Returns whether a parser facade is available.
     [[nodiscard]] bool has_parser() const;
+
+    /// Replace the resource limits used by subsequent parsing and decoding.
+    void set_limits(const resource_limits& limits) noexcept;
+
+    /// Returns the resource limits used by this document.
+    [[nodiscard]] const resource_limits& limits() const noexcept;
 
     /// Returns whether a writer backend is available.
     [[nodiscard]] bool has_writer() const;
@@ -216,5 +237,11 @@ private:
 
     /// The lazily-initialized revision manager (xrefs + trailers).
     std::unique_ptr<class revision_manager> revision_manager_;
+
+    /// Limits applied to parsing and decoding operations.
+    resource_limits limits_{};
+
+    /// References currently being resolved, used to reject recursive resolution.
+    std::unordered_set<indirect_reference> resolving_;
 };
 } // namespace ripper::pdf::core
