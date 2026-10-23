@@ -8,7 +8,8 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 #include "ripper/pdf/core/parser/value_parsing.hpp"
-#include "ripper/pdf/core/util/checked.hpp"
+#include "ripper/pdf/core/util/byte_range.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 #include "ripper/pdf/core/util/text.hpp"
 
 #include <cstddef>
@@ -187,8 +188,8 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
                 if (length_ptr != nullptr && length_ptr->is_integer() &&
                     length_ptr->as_integer() >= 0)
                 {
-                    const auto length = checked::to_unsigned<std::size_t>(length_ptr->as_integer(),
-                                                                          "Stream /Length");
+                    const auto length = checked_numeric::narrow<std::size_t>(
+                        length_ptr->as_integer(), "Stream /Length");
 
                     // Only refine when /Length describes a range inside the buffer.
                     if (data_start <= source.size() && length <= source.size() - data_start)
@@ -259,11 +260,13 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
 
     // Copy the bytes
     auto raw = os->raw();
-    checked::require_range(range->offset, range->length, raw.size(), "Object stream byte range");
+    const auto body =
+        checked_subspan(raw, byte_offset::from_integer(range->offset),
+                        byte_count::from_integer(range->length), "Object stream body");
 
-    std::string result(range->length, '\0');
-    for (std::size_t i = 0; i < range->length; ++i)
-        result[i] = static_cast<char>(raw[range->offset + i]);
+    std::string result(body.size(), '\0');
+    for (std::size_t i = 0; i < body.size(); ++i)
+        result[i] = static_cast<char>(body[i]);
 
     return result;
 }

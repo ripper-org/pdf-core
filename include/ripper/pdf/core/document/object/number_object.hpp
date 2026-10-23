@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/exceptions/exception.hpp"
-#include "ripper/pdf/core/util/checked.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 
 #include <cstdint>
 #include <variant>
@@ -51,7 +51,7 @@ public:
     [[nodiscard]] std::int64_t as_integer() const
     {
         return is_integer() ? std::get<std::int64_t>(value_)
-                            : checked::real_to_int64(std::get<double>(value_), "number");
+                            : checked_numeric::real_to_int64(std::get<double>(value_), "number");
     }
 
     /// Returns the value as `double`, widening if the value was originally

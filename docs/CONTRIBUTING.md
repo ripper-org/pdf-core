@@ -91,3 +91,39 @@ make test
 
 This project uses `clang-format` with the configuration in `.clang-format`.
 Always run `make format` before committing.
+
+## Checked boundary values
+
+Values read from a PDF are untrusted until they have been validated. When a
+value participates in size, offset, or index arithmetic, convert it at the
+parsing boundary into one of the checked value types instead of passing a raw
+integer around:
+
+- `byte_count` — a validated quantity of bytes; supports checked `plus()`,
+  `minus()`, and `multiplied_by()`.
+- `byte_offset` — a validated position; use `advanced_by()` and
+  `distance_to()` rather than integer arithmetic.
+- `xref_field_width` — a validated 0–8 field width for xref streams.
+- `checked_numeric::narrow<T>()` — the single checked integer conversion helper.
+- `checked_subspan()` — validates an offset/count pair against a specific
+  buffer and returns the resulting span.
+
+Only call `.value()` at the boundary where an external API still requires a
+plain integer, and treat that call as a review point: the surrounding
+arithmetic is no longer protected by the type.
+
+Parsed results that carry several related values should be validated classes
+with a parsing factory and read-only accessors, as `object_stream_layout` does.
+Do not expose validated results as mutable aggregates.
+
+The same factories and operations are `constexpr`, so values known at compile
+time can be checked statically:
+
+```cpp
+constexpr auto row_bytes = byte_count::from_integer(1024);
+constexpr auto image_bytes = row_bytes.multiplied_by(64);
+static_assert(image_bytes.value() == 65536);
+```
+
+Runtime input follows the same path and throws `parse_exception` when a
+constraint fails.

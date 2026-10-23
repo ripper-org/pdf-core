@@ -6,7 +6,7 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 #include "ripper/pdf/core/parser/value_parsing.hpp"
-#include "ripper/pdf/core/util/checked.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 
 #include <cstring>
 #include <string_view>
@@ -63,8 +63,8 @@ indirect_object default_object_parser::parse(document& doc, indirect_reference r
             const auto* length_ptr = dict->get_number("Length");
             if (length_ptr != nullptr && length_ptr->is_integer() && length_ptr->as_integer() >= 0)
             {
-                const auto length =
-                    checked::to_unsigned<std::size_t>(length_ptr->as_integer(), "Stream /Length");
+                const auto length = checked_numeric::narrow<std::size_t>(length_ptr->as_integer(),
+                                                                         "Stream /Length");
 
                 // Clamp to available content in case /Length overruns.
                 if (length <= content_sv.size() - stream_bytes_start_offset)

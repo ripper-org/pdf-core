@@ -7,7 +7,7 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/parser/object_stream_parser.hpp"
-#include "ripper/pdf/core/util/checked.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 
 #include <string>
 
@@ -31,8 +31,8 @@ std::uint32_t objstm::first_offset() const
     if (os == nullptr)
         throw parse_exception{"Object is not a stream"};
 
-    return checked::to_unsigned<std::uint32_t>(
-        object_stream_first(os->dictionary(), os->raw().size()), "Object stream /First");
+    return checked_numeric::narrow<std::uint32_t>(
+        object_stream_first(os->dictionary(), os->raw().size()).value(), "Object stream /First");
 }
 
 std::optional<class objstm> objstm::extension()
@@ -64,13 +64,14 @@ std::optional<objstm::object_range> objstm::object_offset(std::uint32_t index) c
         return std::nullopt;
 
     const auto& limits = obj().identity().owner().limits();
-    const auto layout = parse_object_stream_layout(os->raw(), os->dictionary(), limits);
+    const auto layout = object_stream_layout::parse(os->raw(), os->dictionary(), limits);
+    const auto entries = layout.entries();
 
-    if (index >= layout.entries.size())
+    if (index >= entries.size())
         return std::nullopt;
 
-    const auto& entry = layout.entries[index];
-    return object_range{entry.offset, entry.length};
+    const auto& entry = entries[index];
+    return object_range{entry.offset().value(), entry.length().value()};
 }
 
 std::vector<indirect_object> objstm::objects()

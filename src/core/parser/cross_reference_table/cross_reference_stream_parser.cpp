@@ -3,7 +3,10 @@
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
-#include "ripper/pdf/core/util/checked.hpp"
+#include "ripper/pdf/core/util/byte_count.hpp"
+#include "ripper/pdf/core/util/byte_offset.hpp"
+#include "ripper/pdf/core/util/byte_range.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -28,20 +31,23 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
         throw parse_exception{"Xref stream missing required /Size"};
 
     const auto size =
-        checked::to_unsigned<std::uint32_t>(size_ptr->as_integer(), "Xref stream /Size");
+        checked_numeric::narrow<std::uint32_t>(size_ptr->as_integer(), "Xref stream /Size");
     const auto widths = parse_w(stream_obj);
     const auto ranges = parse_index(stream_obj, size);
 
-    const auto entry_size =
-        checked::add(checked::add(static_cast<std::size_t>(widths.w0),
-                                  static_cast<std::size_t>(widths.w1), "Xref stream /W"),
-                     static_cast<std::size_t>(widths.w2), "Xref stream /W");
+    const auto entry_size = byte_count::from_integer(widths.w0.value())
+                                .plus(byte_count::from_integer(widths.w1.value()))
+                                .plus(byte_count::from_integer(widths.w2.value()));
 
-    if (entry_size == 0)
+    if (entry_size.value() == 0)
         throw parse_exception{"Xref stream entry size is zero"};
 
+    const auto field1_offset = byte_offset::from_integer(widths.w0.value());
+    const auto field2_offset =
+        field1_offset.advanced_by(byte_count::from_integer(widths.w1.value()));
+
     cross_reference_section section{std::deque<cross_reference_subsection>{}};
-    std::size_t byte_offset = 0;
+    auto byte_position = byte_offset::zero();
 
     for (const auto& range : ranges)
     {
@@ -51,15 +57,14 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
 
         for (std::uint32_t i = 0; i < range.count; ++i)
         {
-            if (byte_offset > content.size() || entry_size > content.size() - byte_offset)
-                throw parse_exception{"Xref stream data truncated"};
+            const auto entry_data =
+                checked_subspan(content, byte_position, entry_size, "Xref stream entry");
 
-            const auto entry_data = content.subspan(byte_offset, entry_size);
-
-            const auto type_raw = widths.w0 == 0 ? 1 : read_field(entry_data, 0, widths.w0);
-            const auto field1 = read_field(entry_data, widths.w0, widths.w1);
+            const auto type_raw =
+                widths.w0.value() == 0 ? 1 : read_field(entry_data, byte_offset::zero(), widths.w0);
+            const auto field1 = read_field(entry_data, field1_offset, widths.w1);
             const auto field2 =
-                widths.w2 > 0 ? read_field(entry_data, widths.w0 + widths.w1, widths.w2) : 0;
+                widths.w2.value() > 0 ? read_field(entry_data, field2_offset, widths.w2) : 0;
 
             const auto obj_num = range.first + i;
 
@@ -69,7 +74,7 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
                 // Record a terminal free entry without trusting the raw fields.
                 section.add_entry(
                     cross_reference_entry::make_free(indirect_reference{obj_num, 0}, 0, 0));
-                byte_offset += entry_size;
+                byte_position = byte_position.advanced_by(entry_size);
                 continue;
             }
 
@@ -81,15 +86,16 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
                 {
                     section.add_entry(cross_reference_entry::make_free(
                         indirect_reference{obj_num, 0},
-                        checked::to_unsigned<std::uint32_t>(field1, "Xref stream free-list entry"),
-                        checked::to_unsigned<std::uint16_t>(field2,
-                                                            "Xref stream free generation")));
+                        checked_numeric::narrow<std::uint32_t>(field1,
+                                                               "Xref stream free-list entry"),
+                        checked_numeric::narrow<std::uint16_t>(field2,
+                                                               "Xref stream free generation")));
                     break;
                 }
                 case xref_entry_type::uncompressed:
                 {
                     section.add_entry(cross_reference_entry{
-                        indirect_reference{obj_num, checked::to_unsigned<std::uint16_t>(
+                        indirect_reference{obj_num, checked_numeric::narrow<std::uint16_t>(
                                                         field2, "Xref stream generation number")},
                         field1, true});
                     break;
@@ -98,17 +104,17 @@ cross_reference_section cross_reference_stream_parser::parse(const stream_object
                 {
                     section.add_entry(cross_reference_entry{
                         indirect_reference{obj_num, 0},
-                        checked::to_unsigned<std::uint32_t>(field1,
-                                                            "Xref stream object stream number"),
-                        checked::to_unsigned<std::uint32_t>(field2,
-                                                            "Xref stream object stream index")});
+                        checked_numeric::narrow<std::uint32_t>(field1,
+                                                               "Xref stream object stream number"),
+                        checked_numeric::narrow<std::uint32_t>(field2,
+                                                               "Xref stream object stream index")});
                     break;
                 }
                 default:
                     break;
             }
 
-            byte_offset += entry_size;
+            byte_position = byte_position.advanced_by(entry_size);
         }
     }
 
@@ -124,7 +130,7 @@ cross_reference_stream_parser::parse_w(const stream_object& stream_obj)
 
     column_widths result;
 
-    const auto width_at = [&](std::size_t index, const char* name) -> std::uint32_t
+    const auto width_at = [&](std::size_t index, const char* name) -> xref_field_width
     {
         const auto* number = w->at(index).as_number();
         if (number == nullptr || !number->is_integer())
@@ -134,10 +140,10 @@ cross_reference_stream_parser::parse_w(const stream_object& stream_obj)
         if (value < 0)
             throw parse_exception{std::string{"Xref stream /W "} + name + " must not be negative"};
 
-        if (value > 8)
+        if (value > xref_field_width::max_width)
             throw parse_exception{std::string{"Xref stream /W "} + name + " exceeds 8 bytes"};
 
-        return static_cast<std::uint32_t>(value);
+        return xref_field_width::from_integer(value);
     };
 
     result.w0 = width_at(0, "type width");
@@ -175,8 +181,9 @@ cross_reference_stream_parser::parse_index(const stream_object& stream_obj, std:
             throw parse_exception{"/Index array entries must not be negative"};
 
         ranges.push_back(
-            {checked::to_unsigned<std::uint32_t>(first->as_integer(), "/Index first object number"),
-             checked::to_unsigned<std::uint32_t>(count->as_integer(), "/Index object count")});
+            {checked_numeric::narrow<std::uint32_t>(first->as_integer(),
+                                                    "/Index first object number"),
+             checked_numeric::narrow<std::uint32_t>(count->as_integer(), "/Index object count")});
     }
 
     return ranges;
@@ -184,17 +191,17 @@ cross_reference_stream_parser::parse_index(const stream_object& stream_obj, std:
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 std::uint64_t cross_reference_stream_parser::read_field(std::span<const std::byte> data,
-                                                        std::size_t offset, std::uint32_t width)
+                                                        byte_offset offset, xref_field_width width)
 // NOLINTEND(bugprone-easily-swappable-parameters)
 {
-    checked::require_range(offset, width, data.size(), "Xref stream field");
+    const auto field =
+        checked_subspan(data, offset, byte_count::from_integer(width.value()), "Xref stream field");
 
     std::uint64_t value = 0;
-    for (std::uint32_t i = 0; i < width; ++i)
-    {
-        value = (value << 8) |
-                static_cast<std::uint64_t>(std::to_integer<std::uint8_t>(data[offset + i]));
-    }
+    for (const auto byte_value : field)
+        value =
+            (value << 8) | static_cast<std::uint64_t>(std::to_integer<std::uint8_t>(byte_value));
+
     return value;
 }
 
