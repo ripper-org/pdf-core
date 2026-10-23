@@ -16,11 +16,6 @@
 #include <type_traits>
 #include <vector>
 
-namespace
-{
-template <typename T> inline constexpr bool always_false_v = false;
-}
-
 namespace ripper::pdf::core
 {
 std::vector<std::byte> default_object_serializer::serialize(const object& obj) const
@@ -61,7 +56,7 @@ std::vector<std::byte> default_object_serializer::serialize(const object& obj) c
                 return serialize_stream_object(*value);
             }
             else
-                static_assert(always_false_v<T>, "Non-exhaustive visitor!");
+                static_assert(false, "Non-exhaustive visitor!");
         },
         obj.variant());
 }

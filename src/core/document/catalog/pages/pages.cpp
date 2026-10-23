@@ -41,8 +41,8 @@ std::optional<class page> pages::page(std::uint64_t index)
     std::unordered_set<indirect_reference> visited;
     const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
-    std::function<std::optional<class page>(page_tree_node, std::size_t)> find;
-    find = [&](page_tree_node node, std::size_t depth) -> std::optional<class page>
+    auto find = [&](this auto&& self, page_tree_node node,
+                    std::size_t depth) -> std::optional<class page>
     {
         if (depth > max_depth)
             throw logic_exception{"Page tree depth exceeds the configured limit"};
@@ -64,7 +64,7 @@ std::optional<class page> pages::page(std::uint64_t index)
             {
                 const auto sub = kid.subtree_count();
                 if (remaining < sub)
-                    return find(kid, depth + 1);
+                    return self(kid, depth + 1);
                 remaining -= sub;
             }
         }
@@ -101,8 +101,7 @@ void pages::each(const std::function<void(class page&)>& callback)
     std::unordered_set<indirect_reference> visited;
     const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
-    std::function<void(page_tree_node, std::size_t)> walk;
-    walk = [&](page_tree_node node, std::size_t depth)
+    auto walk = [&](this auto&& self, page_tree_node node, std::size_t depth) -> void
     {
         if (depth > max_depth)
             throw logic_exception{"Page tree depth exceeds the configured limit"};
@@ -121,7 +120,7 @@ void pages::each(const std::function<void(class page&)>& callback)
             }
             else
             {
-                walk(kid, depth + 1);
+                self(kid, depth + 1);
             }
         }
     };
