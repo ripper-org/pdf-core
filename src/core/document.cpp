@@ -1,5 +1,6 @@
 #include "ripper/pdf/core/document.hpp"
 
+#include "core/util/scope_exit.hpp"
 #include "ripper/io/core/reader/file_reader.hpp"
 #include "ripper/io/core/reader/reader.hpp"
 #include "ripper/io/core/writer/file_writer.hpp"
@@ -277,27 +278,7 @@ indirect_object* document::resolve_object(indirect_reference ref)
     if (resolving_.size() >= limits_.max_resolution_depth)
         throw parse_exception{"Maximum indirect object resolution depth exceeded"};
 
-    struct resolution_guard
-    {
-        resolution_guard(std::unordered_set<indirect_reference>& resolving_set,
-                         indirect_reference resolved_ref)
-            : resolving{resolving_set}, ref{resolved_ref}
-        {
-        }
-
-        resolution_guard(const resolution_guard&) = delete;
-        resolution_guard& operator=(const resolution_guard&) = delete;
-        resolution_guard(resolution_guard&&) = delete;
-        resolution_guard& operator=(resolution_guard&&) = delete;
-
-        ~resolution_guard()
-        {
-            resolving.erase(ref);
-        }
-
-        std::unordered_set<indirect_reference>& resolving;
-        indirect_reference ref;
-    } guard{resolving_, ref};
+    scope_exit guard{[this, ref] { resolving_.erase(ref); }};
 
     resolving_.insert(ref);
 
