@@ -21,11 +21,16 @@
 
 namespace ripper::pdf::core
 {
-indirect_object_resolver::indirect_object_resolver(document& document) : document_{document} {}
+indirect_object_resolver::indirect_object_resolver(document& document) : document_{&document} {}
+
+void indirect_object_resolver::rebind(document& document) noexcept
+{
+    document_ = &document;
+}
 
 std::string indirect_object_resolver::resolve(indirect_reference ref) const
 {
-    auto* reader_ptr = document_.reader();
+    auto* reader_ptr = document_->reader();
     if (reader_ptr == nullptr)
         throw io_exception{"No reader backend available"};
 
@@ -35,7 +40,7 @@ std::string indirect_object_resolver::resolve(indirect_reference ref) const
         throw io_exception{
             "The provided reader is not open while trying to resolve an indirect object"};
 
-    auto& xref = document_.cross_reference_table();
+    auto& xref = document_->cross_reference_table();
     const auto entry = xref.find(ref);
     if (entry == nullptr)
         throw parse_exception{"XRef entry not found for indirect object"};
@@ -64,12 +69,12 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     if (target_offset >= file_size)
         throw parse_exception{"Object offset is out of bounds"};
 
-    auto& xref = document_.cross_reference_table();
+    auto& xref = document_->cross_reference_table();
 
     // Determine the byte range occupied by this object on disk
     std::optional<std::uint64_t> next_offset;
 
-    for (auto& rev : document_.revisions().all())
+    for (auto& rev : document_->revisions().all())
     {
         auto& section = rev.section();
         for (const auto& entry_pair : section.entries())
@@ -164,7 +169,7 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     // `endobj`-like sequences. Falls back to the keyword boundary on any error.
     try
     {
-        auto value = parse_value(lexer, document_.limits().max_parse_depth);
+        auto value = parse_value(lexer, document_->resource_limits().max_parse_depth);
         if (value.is_dictionary())
         {
             auto peek_result = lexer.peek();
@@ -239,7 +244,7 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
     const auto objstm_index = entry.objstm_index();
 
     // Resolve the containing object stream (type-1, handled normally)
-    auto& doc = const_cast<document&>(document_);
+    auto& doc = const_cast<document&>(*document_);
     auto* objstm_obj = doc.resolve_object(indirect_reference{objstm_num, 0});
     if (objstm_obj == nullptr)
         throw parse_exception{"Object stream " + std::to_string(objstm_num) + " not found"};
@@ -249,7 +254,7 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
         throw parse_exception{"Object stream " + std::to_string(objstm_num) + " is not a stream"};
 
     // Decode if needed
-    (void)os->content(document_.limits());
+    (void)os->content(document_->resource_limits());
 
     // Find the byte range for the requested object
     objstm view{*objstm_obj};

@@ -54,14 +54,25 @@ public:
 
     /// Documents own objects that store a back-reference to their document.
     ///
-    /// Moving or copying the facade would leave those back-references pointing
-    /// at the original (or a destroyed) instance, so both operations are
-    /// disabled. Use `std::unique_ptr<document>` when movable ownership is
-    /// required.
-    document(const document&) = delete;
-    document& operator=(const document&) = delete;
-    document(document&&) = delete;
-    document& operator=(document&&) = delete;
+    /// Copying a document produces an independent in-memory snapshot: the parsed
+    /// state (revisions, cross-reference entries, objects, header) is deep-copied
+    /// and the reader is cloned, so the copy can lazily resolve objects on its
+    /// own. The writer is not copied; the copy has no writer until one is
+    /// attached via `set_writer()`. Parser, serializer, and save-strategy
+    /// components are rebuilt from their defaults rather than copied.
+    ///
+    /// Moving transfers ownership of all state and rebinds every internal
+    /// back-reference to the destination, so no object content is copied or
+    /// reallocated. Views obtained from the source (`catalog`, `pages`, `page`,
+    /// ...) remain valid after move construction, but views into the
+    /// destination's previous contents are invalidated by move assignment.
+    ///
+    /// The moved-from document is left empty; only destruction and assignment
+    /// are guaranteed afterwards.
+    document(const document& other);
+    document& operator=(const document& other);
+    document(document&& other) noexcept;
+    document& operator=(document&& other) noexcept;
 
     ~document() = default;
 
@@ -104,17 +115,26 @@ public:
     /// Pass `nullptr` to reset to the built-in default (`full_rewrite`).
     void set_save_strategy(std::unique_ptr<class document_save_strategy> strategy);
 
+    /// Attach or replace the writer backend.
+    ///
+    /// When `writer` is non-null, a serializer bound to this document is
+    /// created. When `writer` is `nullptr`, the serializer is released.
+    ///
+    /// This is primarily useful for documents produced by copy construction,
+    /// which intentionally do not copy the source document's writer.
+    void set_writer(std::unique_ptr<ripper::io::core::writer> writer = nullptr);
+
+    /// Replace the resource limits used by subsequent parsing and decoding.
+    void set_resource_limits(const resource_limits& limits) noexcept;
+
+    /// Returns the resource limits used by this document.
+    [[nodiscard]] const resource_limits& resource_limits() const noexcept;
+
     /// Returns whether a reader backend is available.
     [[nodiscard]] bool has_reader() const;
 
     /// Returns whether a parser facade is available.
     [[nodiscard]] bool has_parser() const;
-
-    /// Replace the resource limits used by subsequent parsing and decoding.
-    void set_limits(const resource_limits& limits) noexcept;
-
-    /// Returns the resource limits used by this document.
-    [[nodiscard]] const resource_limits& limits() const noexcept;
 
     /// Returns whether a writer backend is available.
     [[nodiscard]] bool has_writer() const;
@@ -219,6 +239,12 @@ private:
     /// all parsed document state (xref entries, trailers, revisions) is accessed.
     [[nodiscard]] class revision_manager& initialize_revision_manager();
 
+    /// Point all internally stored document back-references at this instance.
+    void rebind_components() noexcept;
+
+    /// Point the identity of every resolved indirect object at this instance.
+    void rebind_object_owners() noexcept;
+
     /// The underlying reader for the PDF file.
     std::unique_ptr<ripper::io::core::reader> reader_;
     /// The parser for the PDF file. Always present when a reader is available.
@@ -239,7 +265,7 @@ private:
     std::unique_ptr<class revision_manager> revision_manager_;
 
     /// Limits applied to parsing and decoding operations.
-    resource_limits limits_{};
+    struct resource_limits limits_{};
 
     /// References currently being resolved, used to reject recursive resolution.
     std::unordered_set<indirect_reference> resolving_;

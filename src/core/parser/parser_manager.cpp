@@ -52,6 +52,20 @@ void parser_manager::set_object_parser(std::unique_ptr<class object_parser> obje
     object_parser_ = std::move(object);
 }
 
+void parser_manager::rebind(document& doc) noexcept
+{
+    document_ = &doc;
+
+    if (header_parser_)
+        header_parser_->rebind(doc);
+
+    if (revision_parser_)
+        revision_parser_->rebind(doc);
+
+    if (object_resolver_)
+        object_resolver_->rebind(doc);
+}
+
 header_parser& parser_manager::header_parser()
 {
     if (!header_parser_)

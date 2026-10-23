@@ -83,7 +83,7 @@ TEST_CASE("resolution depth limit is enforced", "[parser][resolver][limits]")
 
     resource_limits limits;
     limits.max_resolution_depth = 0;
-    doc.set_limits(limits);
+    doc.set_resource_limits(limits);
 
     REQUIRE_THROWS_WITH(doc.resolve_object(indirect_reference{1, 0}),
                         Catch::Matchers::ContainsSubstring("resolution depth"));

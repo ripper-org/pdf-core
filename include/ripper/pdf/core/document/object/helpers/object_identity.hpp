@@ -30,6 +30,12 @@ public:
     /// resolve other indirect references.
     [[nodiscard]] document& owner() const;
 
+    /// Point this identity at `doc`, preserving the indirect reference.
+    ///
+    /// Used when a document's object graph is moved or deep-copied so existing
+    /// objects follow their owner to the destination instance.
+    void rebind_owner(document& doc) noexcept;
+
 private:
     document* document_;
     indirect_reference reference_;

@@ -40,7 +40,7 @@ TEST_CASE("object_stream_layout exposes validated borrowed bodies", "[parser][ob
     // Body:  "AAAAAAAB", with the second object starting at relative offset 7.
     const auto content = bytes("1 0\n2 7\nAAAAAAAB");
 
-    const auto layout = object_stream_layout::parse(content, dict, doc.limits());
+    const auto layout = object_stream_layout::parse(content, dict, doc.resource_limits());
     const auto entries = layout.entries();
 
     REQUIRE(layout.count() == 2);
@@ -70,6 +70,7 @@ TEST_CASE("object_stream_layout cannot be constructed from invalid content",
 
     const auto truncated = bytes("1 0\n");
 
-    REQUIRE_THROWS_AS(object_stream_layout::parse(truncated, dict, doc.limits()), parse_exception);
+    REQUIRE_THROWS_AS(object_stream_layout::parse(truncated, dict, doc.resource_limits()),
+                      parse_exception);
 }
 } // namespace ripper::pdf::core

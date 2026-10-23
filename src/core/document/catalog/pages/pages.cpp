@@ -39,7 +39,7 @@ std::optional<class page> pages::page(std::uint64_t index)
     std::uint64_t remaining = index;
 
     std::unordered_set<indirect_reference> visited;
-    const auto max_depth = obj().identity().owner().limits().max_page_tree_depth;
+    const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
     std::function<std::optional<class page>(page_tree_node, std::size_t)> find;
     find = [&](page_tree_node node, std::size_t depth) -> std::optional<class page>
@@ -99,7 +99,7 @@ void pages::each(const std::function<void(class page&)>& callback)
         throw logic_exception{"Pages::each callback cannot be empty"};
 
     std::unordered_set<indirect_reference> visited;
-    const auto max_depth = obj().identity().owner().limits().max_page_tree_depth;
+    const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
     std::function<void(page_tree_node, std::size_t)> walk;
     walk = [&](page_tree_node node, std::size_t depth)

@@ -98,20 +98,31 @@ pdf-core exposes a clean, object-oriented API for working with PDF documents:
 - **Trailer** — document metadata and cross-reference root
 - **Catalog / Pages tree** — document structure navigation
 
-## Ownership and movability
+## Ownership, copying, and moving
 
 A `document` owns the objects parsed from it, and those objects retain a
-back-reference to their owning document. For that reason `document` is
-neither copyable nor movable. When movable ownership is required, allocate it
-dynamically:
+back-reference to their owning document. The library keeps those references
+correct across both copy and move:
+
+- **Copying** produces an independent in-memory snapshot. Parsed state is
+  deep-copied, the reader is cloned (preserving its cursor position), and every
+  resolved object is rebound to the copy. The writer is intentionally not
+  copied; attach one with `set_writer()` when the copy needs to be saved.
+  Parser, serializer, and save-strategy components are rebuilt from defaults,
+  so injected custom components are not carried over.
+- **Moving** transfers ownership without copying object content and rebinds
+  every internal reference to the destination. Views obtained before a move
+  construction (`catalog`, `pages`, `page`, ...) remain valid.
 
 ```cpp
-auto doc = std::make_unique<ripper::pdf::core::document>(
-    ripper::pdf::core::document::open("input.pdf"));
-```
+auto original = ripper::pdf::core::document::open("input.pdf");
 
-Factory returns such as `document::open()` remain supported because they
-construct the result directly without a move.
+ripper::pdf::core::document copy{original};
+copy.set_writer(std::make_unique<ripper::io::core::file_writer>("copy.pdf"));
+copy.save();
+
+ripper::pdf::core::document relocated{std::move(original)};
+```
 
 ## Resource limits
 
@@ -124,7 +135,7 @@ ripper::pdf::core::document doc{/* reader */, /* writer */};
 
 ripper::pdf::core::resource_limits limits;
 limits.max_decoded_stream_bytes = 64U * 1024U * 1024U;
-doc.set_limits(limits);
+doc.set_resource_limits(limits);
 ```
 
 Exceeding a limit raises `parse_exception` (or `logic_exception` for

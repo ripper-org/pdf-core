@@ -22,7 +22,7 @@ std::uint32_t objstm::count() const
     if (os == nullptr)
         throw parse_exception{"Object is not a stream"};
 
-    return object_stream_count(os->dictionary(), obj().identity().owner().limits());
+    return object_stream_count(os->dictionary(), obj().identity().owner().resource_limits());
 }
 
 std::uint32_t objstm::first_offset() const
@@ -63,7 +63,7 @@ std::optional<objstm::object_range> objstm::object_offset(std::uint32_t index) c
     if (os == nullptr)
         return std::nullopt;
 
-    const auto& limits = obj().identity().owner().limits();
+    const auto& limits = obj().identity().owner().resource_limits();
     const auto layout = object_stream_layout::parse(os->raw(), os->dictionary(), limits);
     const auto entries = layout.entries();
 

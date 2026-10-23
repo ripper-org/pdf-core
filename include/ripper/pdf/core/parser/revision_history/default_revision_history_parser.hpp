@@ -24,8 +24,11 @@ public:
 
     [[nodiscard]] std::unique_ptr<revision_manager> parse() override;
 
+    /// Rebind this parser and its sub-parsers to `document`.
+    void rebind(document& document) noexcept override;
+
 private:
-    document& _document;
+    document* _document;
 
     std::unique_ptr<class cross_reference_table_parser> _xref_parser;
     std::unique_ptr<class trailer_parser> _trailer_parser;

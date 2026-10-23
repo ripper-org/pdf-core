@@ -19,7 +19,7 @@ indirect_object default_object_parser::parse(document& doc, indirect_reference r
 {
     pdf_lexer lexer{content_sv};
 
-    auto content = parse_value(lexer, doc.limits().max_parse_depth);
+    auto content = parse_value(lexer, doc.resource_limits().max_parse_depth);
 
     // After parsing the actual content and obtaining the proper object type, we must
     // now check if the content contains a `stream` keyword. By default, we only allow

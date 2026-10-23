@@ -23,7 +23,7 @@ std::vector<indirect_object> object_stream_parser::parse(document& doc,
         throw parse_exception{"Object stream must have /Type /ObjStm"};
 
     const auto content = stream_obj.raw();
-    const auto layout = object_stream_layout::parse(content, dict, doc.limits());
+    const auto layout = object_stream_layout::parse(content, dict, doc.resource_limits());
 
     std::vector<indirect_object> result;
     result.reserve(layout.entries().size());
@@ -37,7 +37,7 @@ std::vector<indirect_object> object_stream_parser::parse(document& doc,
         std::string_view body_sv{reinterpret_cast<const char*>(body.data()), body.size()};
 
         pdf_lexer lexer{body_sv};
-        auto obj_value = parse_value(lexer, doc.limits().max_parse_depth);
+        auto obj_value = parse_value(lexer, doc.resource_limits().max_parse_depth);
 
         if (obj_value.is_stream())
             throw parse_exception{

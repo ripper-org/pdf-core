@@ -8,7 +8,7 @@ namespace ripper::pdf::core
 ///
 /// The defaults are intentionally generous enough for ordinary documents while
 /// bounding work that a malformed document could otherwise make unbounded.
-/// Override them per document with `document::set_limits()`.
+/// Override them per document with `document::set_resource_limits()`.
 struct resource_limits
 {
     /// Maximum bytes produced by decoding a single stream (cumulative across filters).

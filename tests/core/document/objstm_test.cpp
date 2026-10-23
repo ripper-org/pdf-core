@@ -144,7 +144,7 @@ TEST_CASE("objstm enforces the configured object count limit", "[document][objst
 
     resource_limits limits;
     limits.max_object_stream_objects = 1;
-    doc.set_limits(limits);
+    doc.set_resource_limits(limits);
 
     dictionary_object dict;
     dict.set("N", object{static_cast<std::int64_t>(2)});

@@ -23,6 +23,7 @@
 #include "ripper/pdf/core/parser/parser.hpp"
 #include "ripper/pdf/core/serializer/serializer.hpp"
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -38,6 +39,79 @@ document::document(std::unique_ptr<ripper::io::core::reader> reader,
 
     if (writer_)
         serializer_ = std::make_unique<class serializer>(*this);
+}
+
+document::document(const document& other)
+    : reader_{other.reader_ ? other.reader_->clone() : nullptr}, writer_{nullptr},
+      serializer_{nullptr}, save_strategy_{nullptr}, header_{other.header_},
+      revision_manager_{other.revision_manager_
+                            ? std::make_unique<class revision_manager>(*other.revision_manager_)
+                            : nullptr},
+      limits_{other.limits_}
+{
+    assert(other.resolving_.empty() && "Cannot copy a document during object resolution");
+
+    if (reader_)
+        parser_ = std::make_unique<class parser>(*this);
+
+    rebind_object_owners();
+}
+
+document& document::operator=(const document& other)
+{
+    if (this != &other)
+    {
+        document copy{other};
+        *this = std::move(copy);
+    }
+
+    return *this;
+}
+
+document::document(document&& other) noexcept
+    : reader_{std::move(other.reader_)}, parser_{std::move(other.parser_)},
+      writer_{std::move(other.writer_)}, serializer_{std::move(other.serializer_)},
+      save_strategy_{std::move(other.save_strategy_)}, header_{std::move(other.header_)},
+      revision_manager_{std::move(other.revision_manager_)}, limits_{other.limits_}
+{
+    assert(other.resolving_.empty() && "Cannot move a document during object resolution");
+
+    other.header_.reset();
+
+    rebind_components();
+    rebind_object_owners();
+}
+
+document& document::operator=(document&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+
+    // Destroy the destination's previous object graph before adopting the
+    // source state; identities in that graph point at this document.
+    reader_.reset();
+    parser_.reset();
+    writer_.reset();
+    serializer_.reset();
+    save_strategy_.reset();
+    header_.reset();
+    revision_manager_.reset();
+    resolving_.clear();
+
+    reader_ = std::move(other.reader_);
+    parser_ = std::move(other.parser_);
+    writer_ = std::move(other.writer_);
+    serializer_ = std::move(other.serializer_);
+    save_strategy_ = std::move(other.save_strategy_);
+    header_ = std::move(other.header_);
+    revision_manager_ = std::move(other.revision_manager_);
+    limits_ = other.limits_;
+    other.header_.reset();
+
+    rebind_components();
+    rebind_object_owners();
+
+    return *this;
 }
 
 document document::open(const std::filesystem::path& path)
@@ -81,6 +155,22 @@ void document::set_save_strategy(std::unique_ptr<class document_save_strategy> s
     save_strategy_ = std::move(strategy);
 }
 
+void document::set_writer(std::unique_ptr<ripper::io::core::writer> writer)
+{
+    writer_ = std::move(writer);
+    serializer_ = writer_ ? std::make_unique<class serializer>(*this) : nullptr;
+}
+
+void document::set_resource_limits(const struct resource_limits& limits) noexcept
+{
+    limits_ = limits;
+}
+
+const resource_limits& document::resource_limits() const noexcept
+{
+    return limits_;
+}
+
 bool document::has_reader() const
 {
     return static_cast<bool>(reader_);
@@ -89,16 +179,6 @@ bool document::has_reader() const
 bool document::has_parser() const
 {
     return static_cast<bool>(parser_);
-}
-
-void document::set_limits(const resource_limits& limits) noexcept
-{
-    limits_ = limits;
-}
-
-const resource_limits& document::limits() const noexcept
-{
-    return limits_;
 }
 
 bool document::has_writer() const
@@ -296,5 +376,35 @@ revision_manager& document::initialize_revision_manager()
                                      : object_manager::create_revision_history();
 
     return *revision_manager_;
+}
+
+void document::rebind_components() noexcept
+{
+    if (parser_)
+        parser_->rebind(*this);
+
+    if (serializer_)
+        serializer_->rebind(*this);
+}
+
+void document::rebind_object_owners() noexcept
+{
+    if (!revision_manager_)
+        return;
+
+    // Walk every revision, including superseded sections. The compiled xref view
+    // only exposes newest-wins entries, so it would miss resolved objects that
+    // only exist in older revisions.
+    for (auto& revision : revision_manager_->all())
+    {
+        for (auto& subsection : revision.section().subsections())
+        {
+            for (auto& entry : subsection.entries())
+            {
+                if (auto* object = entry.second.indirect_object())
+                    object->identity().rebind_owner(*this);
+            }
+        }
+    }
 }
 } // namespace ripper::pdf::core

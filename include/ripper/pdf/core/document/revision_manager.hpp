@@ -27,7 +27,9 @@ public:
     /// Copies the revision history.
     ///
     /// The copied entries deep-clone resolved indirect objects, which retain
-    /// their original identity (including the owning document pointer).
+    /// their original identity (including the source document pointer).
+    /// Callers that install the copy into a different `document` must rebind
+    /// those owners; `document`'s copy constructor performs this step.
     revision_manager(const revision_manager& other);
 
     /// Moves the revision history. The source manager is left empty.
