@@ -54,12 +54,10 @@ public:
 
     /// Documents own objects that store a back-reference to their document.
     ///
-    /// Copying a document produces an independent in-memory snapshot: the parsed
-    /// state (revisions, cross-reference entries, objects, header) is deep-copied
-    /// and the reader is cloned, so the copy can lazily resolve objects on its
-    /// own. The writer is not copied; the copy has no writer until one is
-    /// attached via `set_writer()`. Parser, serializer, and save-strategy
-    /// components are rebuilt from their defaults rather than copied.
+    /// A document is movable but not copyable. Copying is deleted because no
+    /// single policy fits every use: the reader would have to be cloned, while
+    /// the writer is exclusive and stateful and cannot be duplicated. Open the
+    /// underlying file again (see `open()`) to obtain another document.
     ///
     /// Moving transfers ownership of all state and rebinds every internal
     /// back-reference to the destination, so no object content is copied or
@@ -69,8 +67,9 @@ public:
     ///
     /// The moved-from document is left empty; only destruction and assignment
     /// are guaranteed afterwards.
-    document(const document& other);
-    document& operator=(const document& other);
+    document(const document& other) = delete;
+    document& operator=(const document& other) = delete;
+
     document(document&& other) noexcept;
     document& operator=(document&& other) noexcept;
 
@@ -120,8 +119,8 @@ public:
     /// When `writer` is non-null, a serializer bound to this document is
     /// created. When `writer` is `nullptr`, the serializer is released.
     ///
-    /// This is primarily useful for documents produced by copy construction,
-    /// which intentionally do not copy the source document's writer.
+    /// This is useful for turning a read-only document into one that can be
+    /// saved, or for redirecting output to a different backend.
     void set_writer(std::unique_ptr<ripper::io::core::writer> writer = nullptr);
 
     /// Replace the resource limits used by subsequent parsing and decoding.

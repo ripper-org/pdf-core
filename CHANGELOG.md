@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `document` copy construction and copy assignment. Copies deep-clone parsed
-  state, clone the reader, and rebuild parser/serializer components; the
-  writer is not copied.
 - `document` move construction and move assignment. Moves transfer state
   without copying object content and rebind every internal document reference.
 - `document::set_writer()` for attaching a writer backend to an existing
-  document, primarily to make copied documents saveable.
+  document, for example to make a read-only document saveable.
 
 ### Changed
+
+- `document` is movable-only: copy construction and copy assignment are
+  deleted. A document owns exclusive resources, so there is no unambiguous
+  copy policy (clone the reader, but what to do with the stateful writer).
 
 - Added checked boundary value types (`byte_count`, `byte_offset`,
   `xref_field_width`) and validated parser result objects for size, offset,

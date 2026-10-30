@@ -98,30 +98,25 @@ pdf-core exposes a clean, object-oriented API for working with PDF documents:
 - **Trailer** — document metadata and cross-reference root
 - **Catalog / Pages tree** — document structure navigation
 
-## Ownership, copying, and moving
+## Ownership and moving
 
 A `document` owns the objects parsed from it, and those objects retain a
 back-reference to their owning document. The library keeps those references
-correct across both copy and move:
+correct across moves:
 
-- **Copying** produces an independent in-memory snapshot. Parsed state is
-  deep-copied, the reader is cloned (preserving its cursor position), and every
-  resolved object is rebound to the copy. The writer is intentionally not
-  copied; attach one with `set_writer()` when the copy needs to be saved.
-  Parser, serializer, and save-strategy components are rebuilt from defaults,
-  so injected custom components are not carried over.
 - **Moving** transfers ownership without copying object content and rebinds
   every internal reference to the destination. Views obtained before a move
   construction (`catalog`, `pages`, `page`, ...) remain valid.
+- **Copying is not supported.** A document is a handle over exclusive resources:
+  the reader would have to be cloned, and the writer is stateful and cannot be
+  duplicated. Open the file again to obtain a second, independent document.
 
 ```cpp
 auto original = ripper::pdf::core::document::open("input.pdf");
-
-ripper::pdf::core::document copy{original};
-copy.set_writer(std::make_unique<ripper::io::core::file_writer>("copy.pdf"));
-copy.save();
-
 ripper::pdf::core::document relocated{std::move(original)};
+
+// A second independent document over the same source.
+auto second = ripper::pdf::core::document::open("input.pdf");
 ```
 
 ## Resource limits

@@ -82,79 +82,7 @@ TEST_CASE("move assignment transfers state and rebinds owners", "[document][move
     REQUIRE(target.catalog().pages().count() == page_count);
 }
 
-TEST_CASE("copying a document deep-copies state and rebinds owners", "[document][copy]")
-{
-    auto source = document::open(test_fixture::fixture_pdf_path());
-    const auto page_count = source.catalog().pages().count();
-
-    document copy{source};
-
-    REQUIRE(copy.has_reader());
-    REQUIRE(copy.has_parser());
-    REQUIRE_FALSE(copy.has_writer());
-    REQUIRE_FALSE(copy.has_serializer());
-
-    auto copy_pages = copy.catalog().pages();
-    REQUIRE(&copy_pages.obj().identity().owner() == &copy);
-    REQUIRE(copy_pages.count() == page_count);
-
-    (void)copy_pages.add_page();
-
-    REQUIRE(copy_pages.count() == page_count + 1);
-    REQUIRE(source.catalog().pages().count() == page_count);
-}
-
-TEST_CASE("copying a document preserves header and limits", "[document][copy]")
-{
-    auto source = document::open(test_fixture::fixture_pdf_path());
-
-    resource_limits limits;
-    limits.max_parse_depth = 123;
-    source.set_resource_limits(limits);
-
-    (void)source.header();
-
-    document copy{source};
-
-    REQUIRE(copy.resource_limits().max_parse_depth == 123);
-    REQUIRE(copy.header().version() == source.header().version());
-}
-
-TEST_CASE("copying an unparsed document keeps it lazy after the source dies",
-          "[document][copy][lazy]")
-{
-    const auto fixture = test_fixture::fixture_pdf_path();
-
-    document copy{nullptr, nullptr};
-    {
-        auto source = document::open(fixture);
-        copy = source;
-    }
-
-    REQUIRE(copy.has_reader());
-    REQUIRE(std::string{copy.header().version()}.starts_with("2."));
-    REQUIRE(copy.catalog().pages().count() > 0);
-}
-
-TEST_CASE("copy assignment replaces the destination state", "[document][copy]")
-{
-    test_fixture::scoped_temp_file output{"pdf_ripper_core_document_copy_assignment.pdf"};
-
-    auto source = document::open(test_fixture::fixture_pdf_path());
-    const auto page_count = source.catalog().pages().count();
-
-    document target = document::create(output.path());
-    REQUIRE(target.has_writer());
-
-    target = source;
-
-    REQUIRE(target.has_reader());
-    REQUIRE_FALSE(target.has_writer());
-    REQUIRE(&target.catalog().pages().obj().identity().owner() == &target);
-    REQUIRE(target.catalog().pages().count() == page_count);
-}
-
-TEST_CASE("copying a document rebinds objects in every revision", "[document][copy][revision]")
+TEST_CASE("moving a document rebinds objects in every revision", "[document][move][revision]")
 {
     auto source = document::open(test_fixture::fixture_pdf_path());
 
@@ -165,11 +93,11 @@ TEST_CASE("copying a document rebinds objects in every revision", "[document][co
     source.create_new_revision();
     (void)source.resolve_object_to_active_revision(pages_ref);
 
-    document copy{source};
+    document moved{std::move(source)};
 
-    REQUIRE(copy.revisions().size() == revision_count + 1);
+    REQUIRE(moved.revisions().size() == revision_count + 1);
 
-    for (auto& revision : copy.revisions().all())
+    for (auto& revision : moved.revisions().all())
     {
         for (auto& subsection : revision.section().subsections())
         {
@@ -177,41 +105,41 @@ TEST_CASE("copying a document rebinds objects in every revision", "[document][co
             {
                 auto* object = entry.second.indirect_object();
                 if (object != nullptr)
-                    REQUIRE(&object->identity().owner() == &copy);
+                    REQUIRE(&object->identity().owner() == &moved);
             }
         }
     }
 
-    // The copy owns independent clones; resolving in the copy must not touch
-    // the source document.
-    REQUIRE(copy.resolve_object(pages_ref) != nullptr);
-    REQUIRE(source.resolve_object(pages_ref) != nullptr);
+    // Objects from every revision are rebound; resolution after the move uses
+    // the moved document's own parser and cross-reference table.
+    REQUIRE(moved.resolve_object(pages_ref) != nullptr);
 }
 
-TEST_CASE("attaching a writer makes a copied document saveable", "[document][copy][save]")
+TEST_CASE("attaching a writer makes a document saveable", "[document][save]")
 {
-    test_fixture::scoped_temp_file output{"pdf_ripper_core_document_copy_save_test.pdf"};
+    test_fixture::scoped_temp_file output{"pdf_ripper_core_document_set_writer_test.pdf"};
 
-    auto source = document::open(test_fixture::fixture_pdf_path());
-    const auto page_count = source.catalog().pages().count();
+    auto doc = document::open(test_fixture::fixture_pdf_path());
+    const auto page_count = doc.catalog().pages().count();
 
-    document copy{source};
-    copy.set_writer(std::make_unique<ripper::io::core::file_writer>(output.path()));
+    REQUIRE_FALSE(doc.has_writer());
+    REQUIRE_FALSE(doc.has_serializer());
 
-    REQUIRE(copy.has_writer());
-    REQUIRE(copy.has_serializer());
+    doc.set_writer(std::make_unique<ripper::io::core::file_writer>(output.path()));
 
-    auto pages = copy.catalog().pages();
+    REQUIRE(doc.has_writer());
+    REQUIRE(doc.has_serializer());
+
+    auto pages = doc.catalog().pages();
     (void)pages.add_page();
 
-    REQUIRE_NOTHROW(copy.save());
+    REQUIRE_NOTHROW(doc.save());
 
     auto read_back = document::open(output.path());
     REQUIRE(read_back.catalog().pages().count() == page_count + 1);
-    REQUIRE(source.catalog().pages().count() == page_count);
 
-    copy.set_writer();
-    REQUIRE_FALSE(copy.has_writer());
-    REQUIRE_FALSE(copy.has_serializer());
+    doc.set_writer();
+    REQUIRE_FALSE(doc.has_writer());
+    REQUIRE_FALSE(doc.has_serializer());
 }
 } // namespace ripper::pdf::core

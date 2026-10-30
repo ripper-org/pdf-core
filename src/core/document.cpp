@@ -42,33 +42,6 @@ document::document(std::unique_ptr<ripper::io::core::reader> reader,
         serializer_ = std::make_unique<class serializer>(*this);
 }
 
-document::document(const document& other)
-    : reader_{other.reader_ ? other.reader_->clone() : nullptr}, writer_{nullptr},
-      serializer_{nullptr}, save_strategy_{nullptr}, header_{other.header_},
-      revision_manager_{other.revision_manager_
-                            ? std::make_unique<class revision_manager>(*other.revision_manager_)
-                            : nullptr},
-      limits_{other.limits_}
-{
-    assert(other.resolving_.empty() && "Cannot copy a document during object resolution");
-
-    if (reader_)
-        parser_ = std::make_unique<class parser>(*this);
-
-    rebind_object_owners();
-}
-
-document& document::operator=(const document& other)
-{
-    if (this != &other)
-    {
-        document copy{other};
-        *this = std::move(copy);
-    }
-
-    return *this;
-}
-
 document::document(document&& other) noexcept
     : reader_{std::move(other.reader_)}, parser_{std::move(other.parser_)},
       writer_{std::move(other.writer_)}, serializer_{std::move(other.serializer_)},
