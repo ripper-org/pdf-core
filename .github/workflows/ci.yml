@@ -16,7 +16,7 @@ concurrency:
 jobs:
   format-check:
     name: Format check (clang-format)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -48,11 +48,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Ubuntu is pinned so the runner image does not drift between runs;
+        # the C++23 baseline compiler (GCC 15) is installed explicitly by the
+        # install-gcc-15 action below.
+        os: [ubuntu-24.04, windows-latest, macos-latest]
         build_type: [Debug, Release]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install GCC 15
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/install-gcc-15
 
       # BUILD_SHARED_LIBS=OFF on Windows forces zlib-ng to build static; its
       # default shared build would otherwise require its DLL at test runtime
@@ -73,18 +80,21 @@ jobs:
 
   install-consumer:
     name: Installed-package consumer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install GCC 15
+        uses: ./.github/actions/install-gcc-15
 
       - name: Verify install and external consumer
         run: ./scripts/verify_install.sh
 
   sanitizers:
     name: Sanitizers (ASan + UBSan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       CXXFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -92,6 +102,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install GCC 15
+        uses: ./.github/actions/install-gcc-15
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
@@ -109,10 +122,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install GCC 15
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/install-gcc-15
 
       - name: Set up MSVC environment
         if: runner.os == 'Windows'

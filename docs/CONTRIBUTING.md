@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - CMake 3.20+
-- A C++23-compatible compiler (GCC 14+, Clang 18+, Apple Clang 16+, MSVC 2022 17.12+)
+- A C++23-compatible compiler (GCC 15+, Clang 19+, Apple Clang 17+, MSVC 2022 17.13+)
 - `clang-format` (optional, for formatting support)
 - `clang-tidy` (optional, for static analysis)
 

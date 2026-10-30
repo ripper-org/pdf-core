@@ -124,10 +124,14 @@ public:
     void set_writer(std::unique_ptr<ripper::io::core::writer> writer = nullptr);
 
     /// Replace the resource limits used by subsequent parsing and decoding.
-    void set_resource_limits(const resource_limits& limits) noexcept;
+    ///
+    /// The elaborated `struct` specifiers are intentional: the accessor below
+    /// has the same name as the type, and GCC rejects changing the meaning of a
+    /// name used earlier in the class (`-Wchanges-meaning`).
+    void set_resource_limits(const struct resource_limits& limits) noexcept;
 
     /// Returns the resource limits used by this document.
-    [[nodiscard]] const resource_limits& resource_limits() const noexcept;
+    [[nodiscard]] const struct resource_limits& resource_limits() const noexcept;
 
     /// Returns whether a reader backend is available.
     [[nodiscard]] bool has_reader() const;
