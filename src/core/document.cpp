@@ -77,6 +77,9 @@ document::document(document&& other) noexcept
 {
     assert(other.resolving_.empty() && "Cannot move a document during object resolution");
 
+    // Defensive in release builds: the assertion above is compiled out, and the
+    // moved-from document must not keep stale in-flight resolution references.
+    other.resolving_.clear();
     other.header_.reset();
 
     rebind_components();
@@ -87,6 +90,8 @@ document& document::operator=(document&& other) noexcept
 {
     if (this == &other)
         return *this;
+
+    assert(other.resolving_.empty() && "Cannot move a document during object resolution");
 
     // Destroy the destination's previous object graph before adopting the
     // source state; identities in that graph point at this document.
@@ -107,6 +112,7 @@ document& document::operator=(document&& other) noexcept
     header_ = std::move(other.header_);
     revision_manager_ = std::move(other.revision_manager_);
     limits_ = other.limits_;
+    other.resolving_.clear();
     other.header_.reset();
 
     rebind_components();
