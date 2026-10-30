@@ -16,6 +16,11 @@ namespace ripper::pdf::core
 {
 serializer_manager::serializer_manager(const document& doc) : document_{&doc} {}
 
+void serializer_manager::rebind(const document& doc) noexcept
+{
+    document_ = &doc;
+}
+
 void serializer_manager::set_header_serializer(std::unique_ptr<class header_serializer> object)
 {
     header_serializer_ = std::move(object);

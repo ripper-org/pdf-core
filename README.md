@@ -10,6 +10,10 @@ second-guessing your intent.
 Built on [io-core](https://github.com/ripper-org/io-core) for portable I/O and
 [zlib-ng](https://github.com/zlib-ng/zlib-ng) for stream compression.
 
+## Requirements
+
+A C++23-capable compiler and CMake 3.20+.
+
 ## Use cases
 
 - Extract metadata, pages, or structure from existing PDF documents

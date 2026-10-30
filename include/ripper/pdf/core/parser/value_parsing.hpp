@@ -4,8 +4,13 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 
+#include <cstddef>
+
 namespace ripper::pdf::core
 {
+/// Default maximum nesting depth for arrays and dictionaries.
+inline constexpr std::size_t default_max_parse_depth = 256;
+
 /// Parse an indirect reference of the form `obj gen R`.
 ///
 /// Consumes exactly three tokens and validates their types.
@@ -20,17 +25,23 @@ namespace ripper::pdf::core
 /// before consuming, so no tokens are lost if the lookahead does not match.
 ///
 /// On unrecognised tokens the token is consumed and a null object is returned.
-[[nodiscard]] object parse_value(pdf_lexer& lexer);
+///
+/// @throws parse_exception if nesting exceeds `max_depth`.
+[[nodiscard]] object parse_value(pdf_lexer& lexer, std::size_t max_depth = default_max_parse_depth);
 
 /// Parse a `[ ... ]` array from `lexer`.
 ///
 /// Assumes the opening `[` token has already been consumed.
-[[nodiscard]] array_object parse_array(pdf_lexer& lexer);
+/// @throws parse_exception if nesting exceeds `max_depth`.
+[[nodiscard]] array_object parse_array(pdf_lexer& lexer,
+                                       std::size_t max_depth = default_max_parse_depth);
 
 /// Parse a `<< ... >>` dictionary_object from `lexer`.
 ///
 /// Assumes the opening `<<` token has already been consumed.
-[[nodiscard]] dictionary_object parse_dictionary(pdf_lexer& lexer);
+/// @throws parse_exception if nesting exceeds `max_depth`.
+[[nodiscard]] dictionary_object parse_dictionary(pdf_lexer& lexer,
+                                                 std::size_t max_depth = default_max_parse_depth);
 
 /// Extract the PDF value content from an indirect object's text representation.
 ///

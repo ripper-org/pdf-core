@@ -12,7 +12,7 @@
 namespace ripper::pdf::core
 {
 parser::parser(document& doc)
-    : document_{doc}, manager_{std::make_unique<class parser_manager>(doc)}
+    : document_{&doc}, manager_{std::make_unique<class parser_manager>(doc)}
 {
 }
 
@@ -21,9 +21,17 @@ parser::~parser() = default;
 parser_manager& parser::manager()
 {
     if (!manager_)
-        manager_ = std::make_unique<class parser_manager>(document_);
+        manager_ = std::make_unique<class parser_manager>(*document_);
 
     return *manager_;
+}
+
+void parser::rebind(document& doc) noexcept
+{
+    document_ = &doc;
+
+    if (manager_)
+        manager_->rebind(doc);
 }
 
 header parser::parse_header()
@@ -42,6 +50,6 @@ indirect_object parser::parse_object(indirect_reference ref, bool preload_stream
 
     (void)preload_stream;
 
-    return manager().object_parser().parse(document_, ref, content);
+    return manager().object_parser().parse(*document_, ref, content);
 }
 } // namespace ripper::pdf::core

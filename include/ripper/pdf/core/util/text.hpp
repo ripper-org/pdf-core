@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -221,72 +222,80 @@ namespace ripper::pdf::core::text
 [[nodiscard]] inline std::string unescape_literal_string(std::string_view value)
 {
     std::string unescaped;
-    unescaped.reserve(value.size());
-
-    for (std::size_t i = 0; i < value.size(); ++i)
-    {
-        if (value[i] != '\\' || i + 1 >= value.size())
+    unescaped.resize_and_overwrite(
+        value.size(),
+        [value](char* buffer, std::size_t) noexcept -> std::size_t
         {
-            unescaped += value[i];
-            continue;
-        }
+            const std::span<char> output{buffer, value.size()};
+            std::size_t written = 0;
 
-        ++i;
-        switch (value[i])
-        {
-            case 'n':
-                unescaped += '\n';
-                break;
-            case 'r':
-                unescaped += '\r';
-                break;
-            case 't':
-                unescaped += '\t';
-                break;
-            case 'b':
-                unescaped += '\b';
-                break;
-            case 'f':
-                unescaped += '\f';
-                break;
-            case '(':
-                unescaped += '(';
-                break;
-            case ')':
-                unescaped += ')';
-                break;
-            case '\\':
-                unescaped += '\\';
-                break;
-            case '\n':
-                break;
-            case '\r':
-                if (i + 1 < value.size() && value[i + 1] == '\n')
-                    ++i;
-                break;
-            default:
+            for (std::size_t i = 0; i < value.size(); ++i)
             {
-                if (value[i] >= '0' && value[i] <= '7')
+                if (value[i] != '\\' || i + 1 >= value.size())
                 {
-                    int octal = value[i] - '0';
-                    int count = 1;
-                    while (count < 3 && i + 1 < value.size() && value[i + 1] >= '0' &&
-                           value[i + 1] <= '7')
+                    output[written++] = value[i];
+                    continue;
+                }
+
+                ++i;
+                switch (value[i])
+                {
+                    case 'n':
+                        output[written++] = '\n';
+                        break;
+                    case 'r':
+                        output[written++] = '\r';
+                        break;
+                    case 't':
+                        output[written++] = '\t';
+                        break;
+                    case 'b':
+                        output[written++] = '\b';
+                        break;
+                    case 'f':
+                        output[written++] = '\f';
+                        break;
+                    case '(':
+                        output[written++] = '(';
+                        break;
+                    case ')':
+                        output[written++] = ')';
+                        break;
+                    case '\\':
+                        output[written++] = '\\';
+                        break;
+                    case '\n':
+                        break;
+                    case '\r':
+                        if (i + 1 < value.size() && value[i + 1] == '\n')
+                            ++i;
+                        break;
+                    default:
                     {
-                        octal = octal * 8 + (value[++i] - '0');
-                        ++count;
+                        if (value[i] >= '0' && value[i] <= '7')
+                        {
+                            int octal = value[i] - '0';
+                            int count = 1;
+                            while (count < 3 && i + 1 < value.size() && value[i + 1] >= '0' &&
+                                   value[i + 1] <= '7')
+                            {
+                                octal = octal * 8 + (value[++i] - '0');
+                                ++count;
+                            }
+                            if (octal <= 255)
+                                output[written++] = static_cast<char>(octal);
+                        }
+                        else
+                        {
+                            output[written++] = value[i];
+                        }
+                        break;
                     }
-                    if (octal <= 255)
-                        unescaped += static_cast<char>(octal);
                 }
-                else
-                {
-                    unescaped += value[i];
-                }
-                break;
             }
-        }
-    }
+
+            return written;
+        });
 
     return unescaped;
 }
@@ -356,23 +365,32 @@ namespace ripper::pdf::core::text
     };
 
     std::string unescaped;
-    unescaped.reserve(value.size());
-
-    for (std::size_t i = 0; i < value.size(); ++i)
-    {
-        if (value[i] == '#' && i + 2 < value.size())
+    unescaped.resize_and_overwrite(
+        value.size(),
+        [value, hex_digit](char* buffer, std::size_t) noexcept -> std::size_t
         {
-            const int hi = hex_digit(static_cast<unsigned char>(value[i + 1]));
-            const int lo = hex_digit(static_cast<unsigned char>(value[i + 2]));
-            if (hi >= 0 && lo >= 0)
+            const std::span<char> output{buffer, value.size()};
+            std::size_t written = 0;
+
+            for (std::size_t i = 0; i < value.size(); ++i)
             {
-                unescaped += static_cast<char>(static_cast<unsigned char>((hi << 4) | lo));
-                i += 2;
-                continue;
+                if (value[i] == '#' && i + 2 < value.size())
+                {
+                    const int hi = hex_digit(static_cast<unsigned char>(value[i + 1]));
+                    const int lo = hex_digit(static_cast<unsigned char>(value[i + 2]));
+                    if (hi >= 0 && lo >= 0)
+                    {
+                        output[written++] =
+                            static_cast<char>(static_cast<unsigned char>((hi << 4) | lo));
+                        i += 2;
+                        continue;
+                    }
+                }
+                output[written++] = value[i];
             }
-        }
-        unescaped += value[i];
-    }
+
+            return written;
+        });
 
     return unescaped;
 }

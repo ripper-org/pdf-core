@@ -72,13 +72,18 @@ default_revision_history_parser::default_revision_history_parser(document& docum
 default_revision_history_parser::default_revision_history_parser(
     document& document, std::unique_ptr<class cross_reference_table_parser> xref_parser,
     std::unique_ptr<class trailer_parser> trailer_parser)
-    : _document{document}, _xref_parser{std::move(xref_parser)},
+    : _document{&document}, _xref_parser{std::move(xref_parser)},
       _trailer_parser{std::move(trailer_parser)}
 {
     if (!_xref_parser)
         _xref_parser = std::make_unique<default_cross_reference_table_parser>();
     if (!_trailer_parser)
         _trailer_parser = std::make_unique<default_trailer_parser>();
+}
+
+void default_revision_history_parser::rebind(document& document) noexcept
+{
+    _document = &document;
 }
 
 std::optional<std::size_t>
@@ -144,7 +149,7 @@ default_revision_history_parser::find_start_xref_offset(ripper::io::core::reader
 
 std::unique_ptr<revision_manager> default_revision_history_parser::parse()
 {
-    auto* reader_ptr = _document.reader();
+    auto* reader_ptr = _document->reader();
     if (reader_ptr == nullptr)
         throw io_exception{"No reader backend available"};
 
@@ -257,7 +262,7 @@ std::unique_ptr<revision_manager> default_revision_history_parser::parse()
                     {
                         auto [stm_section, stm_trailer] =
                             compressed_cross_reference_table_parser::parse(
-                                _document, stm_content, indirect_reference{0, 0});
+                                *_document, stm_content, indirect_reference{0, 0});
                         for (auto& entry : stm_section.entries())
                         {
                             revisions.back().section().add_entry(std::move(*entry.second));
@@ -301,7 +306,7 @@ std::unique_ptr<revision_manager> default_revision_history_parser::parse()
             }
 
             auto [section, trailer_obj] = compressed_cross_reference_table_parser::parse(
-                _document, collected_content, indirect_reference{0, 0});
+                *_document, collected_content, indirect_reference{0, 0});
 
             section.set_startxref_offset(static_cast<std::uint64_t>(current_offset));
 

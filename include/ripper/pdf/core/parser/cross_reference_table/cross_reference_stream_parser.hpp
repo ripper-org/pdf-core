@@ -2,6 +2,8 @@
 
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_section.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/parser/cross_reference_table/xref_field_width.hpp"
+#include "ripper/pdf/core/util/byte_offset.hpp"
 
 #include <cstdint>
 #include <vector>
@@ -31,9 +33,9 @@ public:
 private:
     struct column_widths
     {
-        std::uint32_t w0 = 1;
-        std::uint32_t w1 = 0;
-        std::uint32_t w2 = 0;
+        xref_field_width w0 = xref_field_width::from_integer(1);
+        xref_field_width w1 = xref_field_width::from_integer(0);
+        xref_field_width w2 = xref_field_width::from_integer(0);
     };
 
     struct subsection_range
@@ -47,7 +49,7 @@ private:
                                                                    std::uint32_t size);
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     [[nodiscard]] static std::uint64_t read_field(std::span<const std::byte> data,
-                                                  std::size_t offset, std::uint32_t width);
+                                                  byte_offset offset, xref_field_width width);
 };
 
 } // namespace ripper::pdf::core

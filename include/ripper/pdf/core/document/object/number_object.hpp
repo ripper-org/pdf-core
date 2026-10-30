@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ripper/pdf/core/exceptions/exception.hpp"
+#include "ripper/pdf/core/util/checked_numeric.hpp"
 
-#include <cmath>
 #include <cstdint>
 #include <variant>
 
@@ -45,9 +45,13 @@ public:
 
     /// Returns the value as `std::int64_t`, truncating if the value was
     /// originally a real.
-    [[nodiscard]] constexpr std::int64_t as_integer() const noexcept
+    ///
+    /// @throws parse_exception if the value is non-finite or outside the
+    ///         representable `std::int64_t` range.
+    [[nodiscard]] std::int64_t as_integer() const
     {
-        return is_integer() ? std::get<std::int64_t>(value_) : static_cast<std::int64_t>(as_real());
+        return is_integer() ? std::get<std::int64_t>(value_)
+                            : checked_numeric::real_to_int64(std::get<double>(value_), "number");
     }
 
     /// Returns the value as `double`, widening if the value was originally

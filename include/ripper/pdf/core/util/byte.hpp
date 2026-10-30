@@ -1,10 +1,8 @@
 #pragma once
 
-#include <algorithm>
 #include <cctype>
 #include <charconv>
 #include <cstddef>
-#include <iterator>
 #include <optional>
 #include <span>
 #include <string>
@@ -17,18 +15,13 @@ namespace ripper::pdf::core::byte
 /// Convert a std::string_view to a vector of bytes.
 [[nodiscard]] inline std::vector<std::byte> to_bytes(std::string_view sv)
 {
-    std::vector<std::byte> result(sv.size());
-    std::transform(sv.begin(), sv.end(), result.begin(),
-                   [](char c) { return std::byte{static_cast<unsigned char>(c)}; });
-
-    return result;
+    return std::vector<std::byte>(std::from_range, std::as_bytes(std::span{sv.data(), sv.size()}));
 }
 
 /// Append the bytes of a string_view to an existing byte buffer.
 inline void append_bytes(std::vector<std::byte>& out, std::string_view sv)
 {
-    std::transform(sv.begin(), sv.end(), std::back_inserter(out),
-                   [](char c) { return std::byte{static_cast<unsigned char>(c)}; });
+    out.append_range(std::as_bytes(std::span{sv.data(), sv.size()}));
 }
 
 /// Append the bytes of a char to an existing byte buffer.
@@ -40,7 +33,7 @@ inline void append_bytes(std::vector<std::byte>& out, const char& c)
 /// Append the bytes of a byte vector to an existing byte buffer.
 inline void append_bytes(std::vector<std::byte>& out, const std::vector<std::byte>& in)
 {
-    out.insert(out.end(), in.begin(), in.end());
+    out.append_range(in);
 }
 
 /// Reinterpret a std::byte pointer as a const char pointer.

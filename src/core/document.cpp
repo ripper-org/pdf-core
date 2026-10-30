@@ -1,5 +1,6 @@
 #include "ripper/pdf/core/document.hpp"
 
+#include "core/util/scope_exit.hpp"
 #include "ripper/io/core/reader/file_reader.hpp"
 #include "ripper/io/core/reader/reader.hpp"
 #include "ripper/io/core/writer/file_writer.hpp"
@@ -23,6 +24,7 @@
 #include "ripper/pdf/core/parser/parser.hpp"
 #include "ripper/pdf/core/serializer/serializer.hpp"
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -38,6 +40,58 @@ document::document(std::unique_ptr<ripper::io::core::reader> reader,
 
     if (writer_)
         serializer_ = std::make_unique<class serializer>(*this);
+}
+
+document::document(document&& other) noexcept
+    : reader_{std::move(other.reader_)}, parser_{std::move(other.parser_)},
+      writer_{std::move(other.writer_)}, serializer_{std::move(other.serializer_)},
+      save_strategy_{std::move(other.save_strategy_)}, header_{std::move(other.header_)},
+      revision_manager_{std::move(other.revision_manager_)}, limits_{other.limits_}
+{
+    assert(other.resolving_.empty() && "Cannot move a document during object resolution");
+
+    // Defensive in release builds: the assertion above is compiled out, and the
+    // moved-from document must not keep stale in-flight resolution references.
+    other.resolving_.clear();
+    other.header_.reset();
+
+    rebind_components();
+    rebind_object_owners();
+}
+
+document& document::operator=(document&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+
+    assert(other.resolving_.empty() && "Cannot move a document during object resolution");
+
+    // Destroy the destination's previous object graph before adopting the
+    // source state; identities in that graph point at this document.
+    reader_.reset();
+    parser_.reset();
+    writer_.reset();
+    serializer_.reset();
+    save_strategy_.reset();
+    header_.reset();
+    revision_manager_.reset();
+    resolving_.clear();
+
+    reader_ = std::move(other.reader_);
+    parser_ = std::move(other.parser_);
+    writer_ = std::move(other.writer_);
+    serializer_ = std::move(other.serializer_);
+    save_strategy_ = std::move(other.save_strategy_);
+    header_ = std::move(other.header_);
+    revision_manager_ = std::move(other.revision_manager_);
+    limits_ = other.limits_;
+    other.resolving_.clear();
+    other.header_.reset();
+
+    rebind_components();
+    rebind_object_owners();
+
+    return *this;
 }
 
 document document::open(const std::filesystem::path& path)
@@ -79,6 +133,22 @@ void document::save(save_strategy_type type)
 void document::set_save_strategy(std::unique_ptr<class document_save_strategy> strategy)
 {
     save_strategy_ = std::move(strategy);
+}
+
+void document::set_writer(std::unique_ptr<ripper::io::core::writer> writer)
+{
+    writer_ = std::move(writer);
+    serializer_ = writer_ ? std::make_unique<class serializer>(*this) : nullptr;
+}
+
+void document::set_resource_limits(const struct resource_limits& limits) noexcept
+{
+    limits_ = limits;
+}
+
+const resource_limits& document::resource_limits() const noexcept
+{
+    return limits_;
 }
 
 bool document::has_reader() const
@@ -175,6 +245,22 @@ indirect_object* document::resolve_object(indirect_reference ref)
     if (!has_parser())
         throw logic_exception{"No parser available to resolve unresolved indirect_object"};
 
+    // Guard against recursive resolution. A compressed xref entry can point at
+    // an object stream that (directly or transitively) contains the entry
+    // itself; without this guard a small malformed document exhausts the stack.
+    if (resolving_.contains(ref))
+    {
+        throw parse_exception{"Recursive resolution of indirect object " +
+                              std::to_string(ref.object_number())};
+    }
+
+    if (resolving_.size() >= limits_.max_resolution_depth)
+        throw parse_exception{"Maximum indirect object resolution depth exceeded"};
+
+    scope_exit guard{[this, ref] { resolving_.erase(ref); }};
+
+    resolving_.insert(ref);
+
     auto parsed = parser_->parse_object(ref);
 
     return entry->resolve(std::make_unique<indirect_object>(std::move(parsed)));
@@ -250,5 +336,35 @@ revision_manager& document::initialize_revision_manager()
                                      : object_manager::create_revision_history();
 
     return *revision_manager_;
+}
+
+void document::rebind_components() noexcept
+{
+    if (parser_)
+        parser_->rebind(*this);
+
+    if (serializer_)
+        serializer_->rebind(*this);
+}
+
+void document::rebind_object_owners() noexcept
+{
+    if (!revision_manager_)
+        return;
+
+    // Walk every revision, including superseded sections. The compiled xref view
+    // only exposes newest-wins entries, so it would miss resolved objects that
+    // only exist in older revisions.
+    for (auto& revision : revision_manager_->all())
+    {
+        for (auto& subsection : revision.section().subsections())
+        {
+            for (auto& entry : subsection.entries())
+            {
+                if (auto* object = entry.second.indirect_object())
+                    object->identity().rebind_owner(*this);
+            }
+        }
+    }
 }
 } // namespace ripper::pdf::core

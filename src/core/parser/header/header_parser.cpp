@@ -11,11 +11,16 @@
 
 namespace ripper::pdf::core
 {
-header_parser::header_parser(const document& document) : _document{document} {}
+header_parser::header_parser(const document& document) : _document{&document} {}
+
+void header_parser::rebind(const document& document) noexcept
+{
+    _document = &document;
+}
 
 header header_parser::parse()
 {
-    auto* _reader_ptr = _document.reader();
+    auto* _reader_ptr = _document->reader();
     if (_reader_ptr == nullptr)
         throw io_exception{"No reader backend available"};
 

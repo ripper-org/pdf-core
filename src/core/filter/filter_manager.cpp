@@ -14,6 +14,7 @@
 #include "ripper/pdf/core/filter/run_length_decode_filter.hpp"
 
 #include <unordered_map>
+#include <utility>
 
 namespace ripper::pdf::core
 {
@@ -157,30 +158,54 @@ void filter_manager::forget(std::string_view name)
 }
 
 std::vector<std::byte> filter_manager::decode(const dictionary_object& dict,
-                                              std::span<const std::byte> raw)
+                                              std::span<const std::byte> raw,
+                                              const resource_limits& limits)
 {
+    const auto enforce_limit = [&](std::vector<std::byte> result) -> std::vector<std::byte>
+    {
+        if (result.size() > limits.max_decoded_stream_bytes)
+            throw parse_exception{"Decoded stream exceeds the configured size limit"};
+
+        return result;
+    };
+
     const auto chain = build_chain(dict);
     if (chain.steps.empty())
     {
+        if (raw.size() > limits.max_decoded_stream_bytes)
+            throw parse_exception{"Decoded stream exceeds the configured size limit"};
+
         auto result = std::vector<std::byte>{raw.begin(), raw.end()};
         const auto* decode_params = dict.get("DecodeParms");
         const auto* params = decode_params != nullptr ? decode_params->as_dictionary() : nullptr;
 
         if (params != nullptr && has_predictor(params))
-            result = apply_predictor(result, *params);
+            result = apply_predictor(result, *params, limits);
 
-        return result;
+        return enforce_limit(std::move(result));
     }
 
-    auto result = chain.steps[0].filter->decode(raw, chain.steps[0].decode_params);
+    auto result =
+        chain.steps[0].filter->decode_with_limits(raw, chain.steps[0].decode_params, limits);
+    result = enforce_limit(std::move(result));
+
     if (has_predictor(chain.steps[0].decode_params))
-        result = apply_predictor(result, *chain.steps[0].decode_params);
+    {
+        result = apply_predictor(result, *chain.steps[0].decode_params, limits);
+        result = enforce_limit(std::move(result));
+    }
 
     for (std::size_t i = 1; i < chain.steps.size(); ++i)
     {
-        result = chain.steps[i].filter->decode(result, chain.steps[i].decode_params);
+        result =
+            chain.steps[i].filter->decode_with_limits(result, chain.steps[i].decode_params, limits);
+        result = enforce_limit(std::move(result));
+
         if (has_predictor(chain.steps[i].decode_params))
-            result = apply_predictor(result, *chain.steps[i].decode_params);
+        {
+            result = apply_predictor(result, *chain.steps[i].decode_params, limits);
+            result = enforce_limit(std::move(result));
+        }
     }
 
     return result;

@@ -39,10 +39,14 @@ std::optional<class page> pages::page(std::uint64_t index)
     std::uint64_t remaining = index;
 
     std::unordered_set<indirect_reference> visited;
+    const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
-    std::function<std::optional<class page>(page_tree_node)> find;
-    find = [&](page_tree_node node) -> std::optional<class page>
+    auto find = [&](this auto&& self, page_tree_node node,
+                    std::size_t depth) -> std::optional<class page>
     {
+        if (depth > max_depth)
+            throw logic_exception{"Page tree depth exceeds the configured limit"};
+
         const auto node_ref = node.obj().identity().reference();
         if (!visited.insert(node_ref).second)
             throw logic_exception{"Cyclic page tree detected at object " +
@@ -60,14 +64,14 @@ std::optional<class page> pages::page(std::uint64_t index)
             {
                 const auto sub = kid.subtree_count();
                 if (remaining < sub)
-                    return find(kid);
+                    return self(kid, depth + 1);
                 remaining -= sub;
             }
         }
         return std::nullopt;
     };
 
-    return find(page_tree_node{obj()});
+    return find(page_tree_node{obj()}, 0);
 }
 
 std::optional<class page> pages::page(indirect_reference ref)
@@ -95,10 +99,13 @@ void pages::each(const std::function<void(class page&)>& callback)
         throw logic_exception{"Pages::each callback cannot be empty"};
 
     std::unordered_set<indirect_reference> visited;
+    const auto max_depth = obj().identity().owner().resource_limits().max_page_tree_depth;
 
-    std::function<void(page_tree_node)> walk;
-    walk = [&](page_tree_node node)
+    auto walk = [&](this auto&& self, page_tree_node node, std::size_t depth) -> void
     {
+        if (depth > max_depth)
+            throw logic_exception{"Page tree depth exceeds the configured limit"};
+
         const auto node_ref = node.obj().identity().reference();
         if (!visited.insert(node_ref).second)
             throw logic_exception{"Cyclic page tree detected at object " +
@@ -113,12 +120,12 @@ void pages::each(const std::function<void(class page&)>& callback)
             }
             else
             {
-                walk(kid);
+                self(kid, depth + 1);
             }
         }
     };
 
-    walk(page_tree_node{obj()});
+    walk(page_tree_node{obj()}, 0);
 }
 
 class page pages::add_page()
