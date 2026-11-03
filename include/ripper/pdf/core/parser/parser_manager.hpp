@@ -45,6 +45,13 @@ public:
     /// Replace the indirect_object parser implementation.
     void set_object_parser(std::unique_ptr<class object_parser> object);
 
+    /// Rebind this manager and all constructed subcomponents to `doc`.
+    ///
+    /// Subcomponents that do not store a document reference are unaffected.
+    /// Already-constructed lazy subcomponents are retargeted; subcomponents
+    /// created later bind to `doc` at construction time.
+    void rebind(document& doc) noexcept;
+
     /// Access the configured header parser.
     [[nodiscard]] class header_parser& header_parser();
 

@@ -14,16 +14,24 @@
 namespace ripper::pdf::core
 {
 serializer::serializer(const document& doc)
-    : document_{doc}, manager_{std::make_unique<class serializer_manager>(doc)}
+    : document_{&doc}, manager_{std::make_unique<class serializer_manager>(doc)}
 {
 }
 
 serializer_manager& serializer::manager()
 {
     if (manager_ == nullptr)
-        manager_ = std::make_unique<class serializer_manager>(document_);
+        manager_ = std::make_unique<class serializer_manager>(*document_);
 
     return *manager_;
+}
+
+void serializer::rebind(const document& doc) noexcept
+{
+    document_ = &doc;
+
+    if (manager_)
+        manager_->rebind(doc);
 }
 
 void serializer::set_line_break_character(char c)

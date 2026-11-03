@@ -1,16 +1,16 @@
 #include "ripper/pdf/core/document/object/string_object.hpp"
 
+#include "ripper/pdf/core/util/byte.hpp"
+
+#include <utility>
+
 namespace ripper::pdf::core
 {
-
-/// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 string_object::string_object(std::string decoded)
-    : decoded_bytes_(reinterpret_cast<const std::byte*>(decoded.data()),
-                     reinterpret_cast<const std::byte*>(decoded.data()) + decoded.size()),
-      encoding_(encoding::utf8), form_(form::literal), original_bytes_(decoded_bytes_)
+    : decoded_bytes_(byte::to_bytes(decoded)), encoding_(encoding::utf8), form_(form::literal),
+      original_bytes_(decoded_bytes_)
 {
 }
-/// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 string_object::string_object(std::vector<std::byte> decoded_bytes,
                              std::vector<std::byte> original_bytes, encoding enc, form f) noexcept
@@ -19,15 +19,12 @@ string_object::string_object(std::vector<std::byte> decoded_bytes,
 {
 }
 
-/// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 string_object::string_object(std::string_view decoded, std::vector<std::byte> original_bytes,
                              encoding enc, form f)
-    : decoded_bytes_(reinterpret_cast<const std::byte*>(decoded.data()),
-                     reinterpret_cast<const std::byte*>(decoded.data()) + decoded.size()),
-      original_bytes_(std::move(original_bytes)), encoding_(enc), form_(f)
+    : decoded_bytes_(byte::to_bytes(decoded)), original_bytes_(std::move(original_bytes)),
+      encoding_(enc), form_(f)
 {
 }
-/// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 const std::vector<std::byte>& string_object::decoded_bytes() const noexcept
 {

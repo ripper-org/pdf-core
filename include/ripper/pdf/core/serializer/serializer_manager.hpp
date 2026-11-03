@@ -27,6 +27,12 @@ public:
     /// The serializer manager stores a reference and does not take ownership of the document.
     explicit serializer_manager(const document& doc);
 
+    /// Rebind this manager to `doc` after the owning document is moved.
+    ///
+    /// Serializer subcomponents receive the document per call and therefore
+    /// require no rebinding.
+    void rebind(const document& doc) noexcept;
+
     /// Replace the header serializer implementation.
     void set_header_serializer(std::unique_ptr<class header_serializer> object);
 

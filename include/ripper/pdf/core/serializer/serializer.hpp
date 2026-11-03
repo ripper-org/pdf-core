@@ -27,6 +27,12 @@ public:
     /// Can be used to replace serializer subcomponents.
     [[nodiscard]] class serializer_manager& manager();
 
+    /// Rebind this serializer and its manager to `doc`.
+    ///
+    /// Used when the owning document is moved; all stored document
+    /// back-references are retargeted at the destination.
+    void rebind(const document& doc) noexcept;
+
     /// Set the character used for line breaks across all sub-serializers (default `\n`).
     void set_line_break_character(char c);
 
@@ -72,7 +78,7 @@ public:
                                                             std::uint64_t xref_offset);
 
 private:
-    const document& document_;
+    const document* document_;
 
     std::unique_ptr<class serializer_manager> manager_;
 };

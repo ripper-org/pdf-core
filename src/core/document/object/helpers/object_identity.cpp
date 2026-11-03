@@ -22,4 +22,9 @@ document& object_identity::owner() const
     assert(document_ != nullptr && "object_identity has null document pointer");
     return *document_;
 }
+
+void object_identity::rebind_owner(document& doc) noexcept
+{
+    document_ = &doc;
+}
 } // namespace ripper::pdf::core

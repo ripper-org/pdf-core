@@ -1,0 +1,18 @@
+name: Install GCC 15
+description: >
+  Installs GCC 15 from the Ubuntu Toolchain PPA and exports CC/CXX so CMake
+  picks it up. The project's C++23 baseline requires GCC 15 for P1206R7
+  container ranges; deducing this requires GCC 14.
+
+runs:
+  using: composite
+  steps:
+    - name: Install GCC 15
+      shell: bash
+      run: |
+        sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install -y gcc-15 g++-15
+        echo "CC=gcc-15" >> "${GITHUB_ENV}"
+        echo "CXX=g++-15" >> "${GITHUB_ENV}"
+        g++-15 --version

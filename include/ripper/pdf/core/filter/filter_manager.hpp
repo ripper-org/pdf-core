@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/filter/stream_filter.hpp"
+#include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -52,9 +53,14 @@ public:
     /// If /Filter is a single name, applies that filter.
     /// If /Filter is an array of names, applies each filter in order.
     ///
-    /// @throws parse_exception if /Filter is malformed or a filter is unknown.
+    /// Decoding output (including intermediate filter results) is bounded by
+    /// `limits.max_decoded_stream_bytes`.
+    ///
+    /// @throws parse_exception if /Filter is malformed, a filter is unknown, or
+    ///         the decoded output exceeds the configured limit.
     [[nodiscard]] static std::vector<std::byte> decode(const dictionary_object& dict,
-                                                       std::span<const std::byte> raw);
+                                                       std::span<const std::byte> raw,
+                                                       const resource_limits& limits = {});
 
     /// Encode stream bytes using /Filter from the dictionary.
     ///
