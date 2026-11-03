@@ -14,14 +14,14 @@ namespace
 [[nodiscard]] content_operation make_operation(std::string operator_name,
                                                std::vector<object> operands = {})
 {
-    return content_operation{std::move(operands), std::move(operator_name)};
+    return content_operation{std::move(operator_name), std::move(operands)};
 }
 
 [[nodiscard]] content_operation make_transform(double a, double b, double c, double d, double e,
                                                double f)
 {
-    return content_operation{{object{a}, object{b}, object{c}, object{d}, object{e}, object{f}},
-                             "cm"};
+    return content_operation{"cm",
+                             {object{a}, object{b}, object{c}, object{d}, object{e}, object{f}}};
 }
 } // namespace
 
@@ -62,9 +62,9 @@ TEST_CASE("content_stream preserves operand value types", "[content][content_str
 {
     content_stream stream;
 
-    stream.append(content_operation{{object{std::int64_t{2}}, object{0.5},
-                                     object{name_object{"F1"}}, object{string_object{"Hello"}}},
-                                    "Tj"});
+    stream.append(content_operation{"Tj",
+                                    {object{std::int64_t{2}}, object{0.5},
+                                     object{name_object{"F1"}}, object{string_object{"Hello"}}}});
 
     const auto& operands = stream.at(0).operands;
     REQUIRE(operands.size() == 4);
@@ -219,7 +219,7 @@ TEST_CASE("content_stream iterates operations in stream order", "[content][conte
 TEST_CASE("content_stream can be constructed from an existing operation vector",
           "[content][content_stream]")
 {
-    content_stream::storage_type operations;
+    std::vector<content_operation> operations;
     operations.push_back(make_operation("q"));
     operations.push_back(make_operation("Q"));
 

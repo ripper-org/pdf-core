@@ -17,11 +17,11 @@ namespace ripper::pdf::core
 /// round-trip unchanged.
 struct content_operation
 {
-    /// Operands consumed by `operator_name`, in stream order.
-    std::vector<object> operands;
-
     /// Operator name without delimiters (e.g. "cm", "Tj", "f*").
     std::string operator_name;
+
+    /// Operands consumed by `operator_name`, in stream order.
+    std::vector<object> operands;
 };
 
 /// An ordered sequence of content-stream instructions.
@@ -32,18 +32,15 @@ struct content_operation
 class content_stream
 {
 public:
-    /// Type alias for the underlying storage.
-    using storage_type = std::vector<content_operation>;
-
     /// Iterator types for range-based usage.
-    using iterator = storage_type::iterator;
-    using const_iterator = storage_type::const_iterator;
+    using iterator = std::vector<content_operation>::iterator;
+    using const_iterator = std::vector<content_operation>::const_iterator;
 
     /// Construct an empty content stream.
     content_stream() noexcept = default;
 
     /// Construct a content stream from an existing operation sequence.
-    explicit content_stream(storage_type operations) noexcept;
+    explicit content_stream(std::vector<content_operation> operations) noexcept;
 
     /// Append an operation to the end of the stream.
     void append(content_operation operation);
@@ -78,10 +75,10 @@ public:
     void clear() noexcept;
 
     /// Returns the raw underlying vector for full traversal or serialization.
-    [[nodiscard]] storage_type& operations() noexcept;
+    [[nodiscard]] std::vector<content_operation>& operations() noexcept;
 
     /// Returns a const reference to the raw underlying vector.
-    [[nodiscard]] const storage_type& operations() const noexcept;
+    [[nodiscard]] const std::vector<content_operation>& operations() const noexcept;
 
     /// Returns an iterator to the beginning.
     [[nodiscard]] iterator begin() noexcept;
@@ -102,6 +99,6 @@ public:
     [[nodiscard]] const_iterator cend() const noexcept;
 
 private:
-    storage_type operations_;
+    std::vector<content_operation> operations_;
 };
 } // namespace ripper::pdf::core

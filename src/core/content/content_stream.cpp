@@ -5,7 +5,7 @@
 
 namespace ripper::pdf::core
 {
-content_stream::content_stream(storage_type operations) noexcept
+content_stream::content_stream(std::vector<content_operation> operations) noexcept
     : operations_(std::move(operations))
 {
 }
@@ -71,12 +71,12 @@ void content_stream::clear() noexcept
     operations_.clear();
 }
 
-content_stream::storage_type& content_stream::operations() noexcept
+std::vector<content_operation>& content_stream::operations() noexcept
 {
     return operations_;
 }
 
-const content_stream::storage_type& content_stream::operations() const noexcept
+const std::vector<content_operation>& content_stream::operations() const noexcept
 {
     return operations_;
 }
