@@ -1,6 +1,7 @@
 #include "ripper/pdf/core/document/trailer/trailer_manager.hpp"
 
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <utility>
 
@@ -12,11 +13,17 @@ trailer_manager::trailer_manager(std::deque<revision>& revisions) noexcept : rev
 
 trailer& trailer_manager::active_trailer()
 {
+    if (revisions_->empty())
+        throw logic_exception{"Trailer manager has no active revision"};
+
     return revisions_->back().trailer();
 }
 
-const trailer& trailer_manager::active_trailer() const noexcept
+const trailer& trailer_manager::active_trailer() const
 {
+    if (revisions_->empty())
+        throw logic_exception{"Trailer manager has no active revision"};
+
     return revisions_->back().trailer();
 }
 

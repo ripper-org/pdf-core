@@ -52,9 +52,9 @@ public:
 
     /// Returns a const reference to the active (newest) trailer.
     ///
-    /// Requires that at least one revision has been added. The revision_manager
-    /// guarantees this after construction.
-    [[nodiscard]] const trailer& active_trailer() const noexcept;
+    /// @throws logic_exception if there are no revisions (for example, after the
+    ///         owning revision_manager has been moved from).
+    [[nodiscard]] const trailer& active_trailer() const;
 
     /// Returns the compiled (merged) trailer dictionary.
     ///

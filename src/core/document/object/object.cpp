@@ -21,7 +21,7 @@ object::object(double value) : value_(number_object{value}) {}
 
 object::object(number_object value) noexcept : value_(std::move(value)) {}
 
-object::object(std::string value) noexcept : value_(string_object{std::move(value)}) {}
+object::object(std::string value) : value_(string_object{std::move(value)}) {}
 
 object::object(string_object value) noexcept : value_(std::move(value)) {}
 

@@ -2,6 +2,7 @@
 #include "ripper/pdf/core/parser/value_parsing.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <string>
 
 namespace ripper::pdf::core
 {
@@ -13,6 +14,21 @@ TEST_CASE("parse_indirect_reference parses object and generation", "[parser][val
 
     REQUIRE(ref.object_number() == 42);
     REQUIRE(ref.generation() == 7);
+}
+
+TEST_CASE("parse_value enforces a nesting depth limit", "[parser][value][limits]")
+{
+    std::string nested(300, '[');
+    nested.append(300, ']');
+    pdf_lexer lexer{nested};
+
+    REQUIRE_THROWS_AS((void)parse_value(lexer), parse_exception);
+
+    pdf_lexer shallow{"[[[[[]]]]]"};
+    REQUIRE_NOTHROW((void)parse_value(shallow, 5));
+
+    pdf_lexer too_shallow{"[[[[[]]]]]"};
+    REQUIRE_THROWS_AS((void)parse_value(too_shallow, 3), parse_exception);
 }
 
 TEST_CASE("parse_value detects indirect references", "[parser][value]")

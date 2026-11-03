@@ -34,6 +34,13 @@ namespace
 std::vector<std::byte> lzw_decode_filter::decode(std::span<const std::byte> input,
                                                  const dictionary_object* params) const
 {
+    return decode_with_limits(input, params, {});
+}
+
+std::vector<std::byte> lzw_decode_filter::decode_with_limits(std::span<const std::byte> input,
+                                                             const dictionary_object* params,
+                                                             const resource_limits& limits) const
+{
     if (input.empty())
         return {};
 
@@ -59,6 +66,12 @@ std::vector<std::byte> lzw_decode_filter::decode(std::span<const std::byte> inpu
 
     std::vector<std::byte> output;
     output.reserve(input.size() * 2);
+
+    const auto ensure_output_limit = [&]()
+    {
+        if (output.size() > limits.max_decoded_stream_bytes)
+            throw parse_exception{"Decoded stream exceeds the configured size limit"};
+    };
 
     std::size_t bit_pos = 0;
 
@@ -129,8 +142,11 @@ std::vector<std::byte> lzw_decode_filter::decode(std::span<const std::byte> inpu
     if (old_code != clear_code)
         output_code(old_code);
 
+    ensure_output_limit();
+
     for (;;)
     {
+        ensure_output_limit();
         maybe_increase_code_size();
 
         const std::uint16_t code = read_code();

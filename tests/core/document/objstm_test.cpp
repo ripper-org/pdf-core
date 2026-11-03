@@ -101,6 +101,77 @@ TEST_CASE("objstm extension is nullopt without /Extends and throws on self refer
     REQUIRE_THROWS_AS(view2.extension(), parse_exception);
 }
 
+TEST_CASE("objstm rejects /First beyond the decoded stream", "[document][objstm][bounds]")
+{
+    document doc{nullptr, nullptr};
+    indirect_reference ref{7, 0};
+
+    dictionary_object dict;
+    dict.set("N", object{static_cast<std::int64_t>(1)});
+    dict.set("First", object{static_cast<std::int64_t>(100)});
+
+    auto obj = make_objstm_object(doc, ref, std::move(dict), b("1 0\nA"));
+
+    objstm view{*obj};
+    REQUIRE_THROWS_AS((void)view.object_offset(0), parse_exception);
+    REQUIRE_THROWS_AS(view.objects(), parse_exception);
+}
+
+TEST_CASE("objstm rejects descending object byte offsets", "[document][objstm][bounds]")
+{
+    document doc{nullptr, nullptr};
+    indirect_reference ref{7, 0};
+
+    // Header: object 1 at relative offset 2, object 2 at relative offset 0.
+    // Absolute offsets are therefore 10 and 8, so the first range would
+    // underflow if the parser trusted the header.
+    dictionary_object dict;
+    dict.set("N", object{static_cast<std::int64_t>(2)});
+    dict.set("First", object{static_cast<std::int64_t>(8)});
+
+    auto obj = make_objstm_object(doc, ref, std::move(dict),
+                                  b("1 2 2 0 "
+                                    "  ("));
+
+    objstm view{*obj};
+    REQUIRE_THROWS_AS((void)view.object_offset(0), parse_exception);
+    REQUIRE_THROWS_AS(view.objects(), parse_exception);
+}
+
+TEST_CASE("objstm enforces the configured object count limit", "[document][objstm][limits]")
+{
+    document doc{nullptr, nullptr};
+
+    resource_limits limits;
+    limits.max_object_stream_objects = 1;
+    doc.set_resource_limits(limits);
+
+    dictionary_object dict;
+    dict.set("N", object{static_cast<std::int64_t>(2)});
+    dict.set("First", object{static_cast<std::int64_t>(8)});
+
+    auto obj =
+        make_objstm_object(doc, indirect_reference{7, 0}, std::move(dict), b("1 0\n2 2\nAB"));
+
+    objstm view{*obj};
+    REQUIRE_THROWS_AS((void)view.object_offset(0), parse_exception);
+    REQUIRE_THROWS_AS(view.objects(), parse_exception);
+}
+
+TEST_CASE("objstm rejects an incomplete header", "[document][objstm][bounds]")
+{
+    document doc{nullptr, nullptr};
+
+    dictionary_object dict;
+    dict.set("N", object{static_cast<std::int64_t>(2)});
+    dict.set("First", object{static_cast<std::int64_t>(4)});
+
+    auto obj = make_objstm_object(doc, indirect_reference{7, 0}, std::move(dict), b("1 0\nAB"));
+
+    objstm view{*obj};
+    REQUIRE_THROWS_AS((void)view.object_offset(0), parse_exception);
+}
+
 TEST_CASE("objstm over a non-stream value throws a parse exception",
           "[document][objstm][validation]")
 {

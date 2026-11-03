@@ -13,9 +13,11 @@
 #include "ripper/pdf/core/document_save_strategy/save_strategy_type.hpp"
 #include "ripper/pdf/core/parser/parser.hpp"
 #include "ripper/pdf/core/serializer/serializer.hpp"
+#include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <filesystem>
 #include <memory>
+#include <unordered_set>
 
 namespace ripper::pdf::core
 {
@@ -49,6 +51,29 @@ public:
     /// existing PDF documents.
     explicit document(std::unique_ptr<ripper::io::core::reader> reader,
                       std::unique_ptr<ripper::io::core::writer> writer);
+
+    /// Documents own objects that store a back-reference to their document.
+    ///
+    /// A document is movable but not copyable. Copying is deleted because no
+    /// single policy fits every use: the reader would have to be cloned, while
+    /// the writer is exclusive and stateful and cannot be duplicated. Open the
+    /// underlying file again (see `open()`) to obtain another document.
+    ///
+    /// Moving transfers ownership of all state and rebinds every internal
+    /// back-reference to the destination, so no object content is copied or
+    /// reallocated. Views obtained from the source (`catalog`, `pages`, `page`,
+    /// ...) remain valid after move construction, but views into the
+    /// destination's previous contents are invalidated by move assignment.
+    ///
+    /// The moved-from document is left empty; only destruction and assignment
+    /// are guaranteed afterwards.
+    document(const document& other) = delete;
+    document& operator=(const document& other) = delete;
+
+    document(document&& other) noexcept;
+    document& operator=(document&& other) noexcept;
+
+    ~document() = default;
 
     /// Open an existing document at `path` in read mode.
     ///
@@ -88,6 +113,25 @@ public:
     ///
     /// Pass `nullptr` to reset to the built-in default (`full_rewrite`).
     void set_save_strategy(std::unique_ptr<class document_save_strategy> strategy);
+
+    /// Attach or replace the writer backend.
+    ///
+    /// When `writer` is non-null, a serializer bound to this document is
+    /// created. When `writer` is `nullptr`, the serializer is released.
+    ///
+    /// This is useful for turning a read-only document into one that can be
+    /// saved, or for redirecting output to a different backend.
+    void set_writer(std::unique_ptr<ripper::io::core::writer> writer = nullptr);
+
+    /// Replace the resource limits used by subsequent parsing and decoding.
+    ///
+    /// The elaborated `struct` specifiers are intentional: the accessor below
+    /// has the same name as the type, and GCC rejects changing the meaning of a
+    /// name used earlier in the class (`-Wchanges-meaning`).
+    void set_resource_limits(const struct resource_limits& limits) noexcept;
+
+    /// Returns the resource limits used by this document.
+    [[nodiscard]] const struct resource_limits& resource_limits() const noexcept;
 
     /// Returns whether a reader backend is available.
     [[nodiscard]] bool has_reader() const;
@@ -198,6 +242,12 @@ private:
     /// all parsed document state (xref entries, trailers, revisions) is accessed.
     [[nodiscard]] class revision_manager& initialize_revision_manager();
 
+    /// Point all internally stored document back-references at this instance.
+    void rebind_components() noexcept;
+
+    /// Point the identity of every resolved indirect object at this instance.
+    void rebind_object_owners() noexcept;
+
     /// The underlying reader for the PDF file.
     std::unique_ptr<ripper::io::core::reader> reader_;
     /// The parser for the PDF file. Always present when a reader is available.
@@ -216,5 +266,11 @@ private:
 
     /// The lazily-initialized revision manager (xrefs + trailers).
     std::unique_ptr<class revision_manager> revision_manager_;
+
+    /// Limits applied to parsing and decoding operations.
+    struct resource_limits limits_{};
+
+    /// References currently being resolved, used to reject recursive resolution.
+    std::unordered_set<indirect_reference> resolving_;
 };
 } // namespace ripper::pdf::core

@@ -176,8 +176,8 @@ public:
 
     /// Returns a mutable reference to the active revision's section (last, newest).
     ///
-    /// The revision_manager guarantees at least one revision exists after construction,
-    /// so this never returns a dangling reference for a properly constructed history.
+    /// @throws logic_exception if there are no revisions (for example, after the
+    ///         owning revision_manager has been moved from).
     [[nodiscard]] cross_reference_section& active_section();
 
 private:

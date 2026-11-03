@@ -33,6 +33,12 @@ public:
     /// Can be used to replace parser subcomponents.
     [[nodiscard]] parser_manager& manager();
 
+    /// Rebind this parser and its manager to `doc`.
+    ///
+    /// Used when the owning document is moved; all stored document
+    /// back-references are retargeted at the destination.
+    void rebind(document& doc) noexcept;
+
     /// Parse and return the document header.
     [[nodiscard]] header parse_header();
 
@@ -46,7 +52,7 @@ public:
     [[nodiscard]] indirect_object parse_object(indirect_reference ref, bool preload_stream = true);
 
 private:
-    document& document_;
+    document* document_;
     std::unique_ptr<parser_manager> manager_;
 };
 } // namespace ripper::pdf::core

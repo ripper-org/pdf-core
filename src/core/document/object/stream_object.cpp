@@ -60,7 +60,7 @@ void stream_object::set_decoded(bool state) noexcept
     is_decoded_ = state;
 }
 
-std::span<const std::byte> stream_object::content()
+std::span<const std::byte> stream_object::content(const resource_limits& limits)
 {
     if (is_decoded_)
         return stream_.data();
@@ -71,7 +71,7 @@ std::span<const std::byte> stream_object::content()
         return stream_.data();
     }
 
-    auto decoded = filter_manager::decode(dict_, stream_.data());
+    auto decoded = filter_manager::decode(dict_, stream_.data(), limits);
     stream_.data() = std::move(decoded);
     is_decoded_ = true;
     return stream_.data();

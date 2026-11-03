@@ -97,3 +97,43 @@ pdf-core exposes a clean, object-oriented API for working with PDF documents:
 - **Cross-reference table** — management of object locations
 - **Trailer** — document metadata and cross-reference root
 - **Catalog / Pages tree** — document structure navigation
+
+## Ownership and moving
+
+A `document` owns the objects parsed from it, and those objects retain a
+back-reference to their owning document. The library keeps those references
+correct across moves:
+
+- **Moving** transfers ownership without copying object content and rebinds
+  every internal reference to the destination. Views obtained before a move
+  construction (`catalog`, `pages`, `page`, ...) remain valid.
+- **Copying is not supported.** A document is a handle over exclusive resources:
+  the reader would have to be cloned, and the writer is stateful and cannot be
+  duplicated. Open the file again to obtain a second, independent document.
+
+```cpp
+auto original = ripper::pdf::core::document::open("input.pdf");
+ripper::pdf::core::document relocated{std::move(original)};
+
+// A second independent document over the same source.
+auto second = ripper::pdf::core::document::open("input.pdf");
+```
+
+## Resource limits
+
+Parsing untrusted PDF data applies bounded defaults to decode size, predictor
+rows, object-stream counts, nesting depth, resolution depth, and page-tree
+depth. Limits are configured per document before accessing its contents:
+
+```cpp
+ripper::pdf::core::document doc{/* reader */, /* writer */};
+
+ripper::pdf::core::resource_limits limits;
+limits.max_decoded_stream_bytes = 64U * 1024U * 1024U;
+doc.set_resource_limits(limits);
+```
+
+Exceeding a limit raises `parse_exception` (or `logic_exception` for
+structural traversal limits) instead of allowing unbounded allocation or
+recursion. Custom `stream_filter` implementations receive the active limits
+through `decode()` and should respect them.
