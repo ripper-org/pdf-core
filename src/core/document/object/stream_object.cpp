@@ -82,4 +82,15 @@ std::span<const std::byte> stream_object::raw() const noexcept
     return stream_.data();
 }
 
+bool stream_object::operator==(const stream_object& other) const noexcept
+{
+    if (!(dict_ == other.dict_))
+        return false;
+
+    const auto& lhs = stream_.data();
+    const auto& rhs = other.stream_.data();
+
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
 } // namespace ripper::pdf::core

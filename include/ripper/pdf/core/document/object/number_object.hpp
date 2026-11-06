@@ -62,6 +62,11 @@ public:
                          : static_cast<double>(std::get<std::int64_t>(value_));
     }
 
+    /// Equality comparison. Compares both representation and value: an integer
+    /// and a real are never equal, even when numerically identical (`1` vs
+    /// `1.0`), matching the representation-preserving contract of this type.
+    bool operator==(const number_object& other) const noexcept = default;
+
 private:
     std::variant<std::int64_t, double> value_;
 };

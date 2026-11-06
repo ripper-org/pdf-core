@@ -149,4 +149,20 @@ dictionary_object::dictionary_map_type& dictionary_object::entries() noexcept
     return entries_;
 }
 
+bool dictionary_object::operator==(const dictionary_object& other) const noexcept
+{
+    if (entries_.size() != other.entries_.size())
+        return false;
+
+    for (const auto& [key, value] : entries_)
+    {
+        const auto it = other.entries_.find(key);
+
+        if (it == other.entries_.end() || !(value == it->second))
+            return false;
+    }
+
+    return true;
+}
+
 } // namespace ripper::pdf::core

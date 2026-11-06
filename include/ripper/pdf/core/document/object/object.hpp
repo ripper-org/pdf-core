@@ -8,11 +8,11 @@
 #include "ripper/pdf/core/document/object/null_object.hpp"
 #include "ripper/pdf/core/document/object/number_object.hpp"
 #include "ripper/pdf/core/document/object/string_object.hpp"
+#include "ripper/pdf/core/util/indirect.hpp"
 #include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -138,6 +138,10 @@ public:
     /// Returns a mutable reference to the raw underlying map.
     [[nodiscard]] dictionary_map_type& entries() noexcept;
 
+    /// Structural equality comparison. Key order is irrelevant; two
+    /// dictionaries are equal if they hold the same keys with equal values.
+    bool operator==(const dictionary_object& other) const noexcept;
+
 private:
     dictionary_map_type entries_;
 };
@@ -199,6 +203,11 @@ public:
     /// After content(): returns decoded bytes.
     [[nodiscard]] std::span<const std::byte> raw() const noexcept;
 
+    /// Equality comparison. Two streams are equal if their content dictionaries
+    /// and byte payloads match. The decoded-state flag is cache state, not
+    /// object identity, and is deliberately ignored.
+    bool operator==(const stream_object& other) const noexcept;
+
 private:
     class dictionary_object dict_;
     class stream stream_;
@@ -214,8 +223,8 @@ private:
 ///   - String (`string_object`, with encoding + form provenance)
 ///   - Name (`name_object`)
 ///   - Array (`array_object`)
-///   - Dictionary (`dictionary_object`, stored via unique_ptr)
-///   - Stream (`stream_object`, stored via unique_ptr)
+///   - Dictionary (`dictionary_object`, stored behind `indirect`)
+///   - Stream (`stream_object`, stored behind `indirect`)
 ///   - Indirect Reference (`indirect_reference`)
 ///
 /// ## Type safety
@@ -226,25 +235,12 @@ private:
 ///
 /// ## Access patterns
 ///
-/// Type-check helpers (`is_*`) and typed accessors (`as_*`) are provided for
-/// ergonomic use in parsing and traversal code. When performance or exhaustive
-/// matching is needed, `variant()` exposes the raw `std::variant` for use with
-/// `std::visit`.
+/// Type-check helpers (`is_*`) and typed accessors (`as_*`) are the only way to
+/// inspect the held value. The variant representation is private, so storage
+/// details cannot leak into caller code.
 class object
 {
 public:
-    /// The underlying variant type holding all possible PDF object alternatives.
-    using variant_type = std::variant<null_object,                        ///> null
-                                      boolean_object,                     ///> boolean
-                                      number_object,                      ///> number
-                                      string_object,                      ///> string
-                                      name_object,                        ///> name
-                                      indirect_reference,                 ///> reference
-                                      array_object,                       ///> array
-                                      std::unique_ptr<dictionary_object>, ///> dictionary
-                                      std::unique_ptr<stream_object>      ///> stream
-                                      >;
-
     /// Construct a null PDF object.
     object() noexcept;
 
@@ -295,6 +291,15 @@ public:
 
     object& operator=(const object& other);
     object& operator=(object&&) noexcept;
+
+    /// Structural equality comparison.
+    ///
+    /// Two objects are equal only if they hold the same alternative and those
+    /// alternatives compare equal. Dictionaries are compared by content (key
+    /// order is irrelevant) and streams by their content dictionary plus byte
+    /// payload; `unique_ptr`-backed alternatives are dereferenced rather than
+    /// compared by pointer identity.
+    bool operator==(const object& other) const noexcept;
 
     /// Create a deep copy of this object.
     ///
@@ -385,16 +390,25 @@ public:
     /// indirect reference object.
     [[nodiscard]] indirect_reference* as_indirect_reference() noexcept;
 
-    /// Returns the raw underlying variant for use with `std::visit`.
-    ///
-    /// Prefer the typed `as_*` accessors for single-type access.
-    /// Use this when exhaustive matching over all alternatives is needed.
-    [[nodiscard]] const variant_type& variant() const noexcept;
-
-    /// Returns a mutable reference to the raw underlying variant.
-    [[nodiscard]] variant_type& variant() noexcept;
-
 private:
+    /// The underlying variant type holding all possible PDF object alternatives.
+    ///
+    /// Dictionaries and streams are held through `indirect` rather than
+    /// `std::unique_ptr`: the indirection exists only to break the mutual
+    /// recursion with `object`, and `indirect` keeps that storage detail from
+    /// leaking into value semantics. The representation is private; callers use
+    /// the `is_*`/`as_*` accessors.
+    using variant_type = std::variant<null_object,                 ///> null
+                                      boolean_object,              ///> boolean
+                                      number_object,               ///> number
+                                      string_object,               ///> string
+                                      name_object,                 ///> name
+                                      indirect_reference,          ///> reference
+                                      array_object,                ///> array
+                                      indirect<dictionary_object>, ///> dictionary
+                                      indirect<stream_object>      ///> stream
+                                      >;
+
     variant_type value_;
 };
 

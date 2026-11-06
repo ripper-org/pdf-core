@@ -10,55 +10,49 @@
 #include <array>
 #include <charconv>
 #include <cmath>
-#include <memory>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <vector>
 
 namespace ripper::pdf::core
 {
 std::vector<std::byte> default_object_serializer::serialize(const object& obj) const
 {
-    return std::visit(
-        [&](const auto& value) -> std::vector<std::byte>
-        {
-            using T = std::decay_t<decltype(value)>;
+    if (obj.is_null())
+        return serialize_null();
 
-            if constexpr (std::is_same_v<T, null_object>)
-                return serialize_null();
-            else if constexpr (std::is_same_v<T, boolean_object>)
-                return serialize_bool(value.value);
-            else if constexpr (std::is_same_v<T, number_object>)
-            {
-                if (value.is_real())
-                    return serialize_real(value.as_real());
-                return serialize_integer(value.as_integer());
-            }
-            else if constexpr (std::is_same_v<T, string_object>)
-                return serialize_string(value.as_string());
-            else if constexpr (std::is_same_v<T, name_object>)
-                return serialize_name(value);
-            else if constexpr (std::is_same_v<T, indirect_reference>)
-                return serialize_indirect_reference(value);
-            else if constexpr (std::is_same_v<T, array_object>)
-                return serialize_array(value);
-            else if constexpr (std::is_same_v<T, std::unique_ptr<dictionary_object>>)
-            {
-                if (!value)
-                    return {};
-                return serialize_dictionary(*value);
-            }
-            else if constexpr (std::is_same_v<T, std::unique_ptr<stream_object>>)
-            {
-                if (!value)
-                    return {};
-                return serialize_stream_object(*value);
-            }
-            else
-                static_assert(false, "Non-exhaustive visitor!");
-        },
-        obj.variant());
+    if (const auto* value = obj.as_boolean())
+        return serialize_bool(value->value);
+
+    if (const auto* value = obj.as_number())
+    {
+        if (value->is_real())
+            return serialize_real(value->as_real());
+        return serialize_integer(value->as_integer());
+    }
+
+    if (const auto* value = obj.as_string())
+        return serialize_string(value->as_string());
+
+    if (const auto* value = obj.as_name())
+        return serialize_name(*value);
+
+    if (const auto* value = obj.as_indirect_reference())
+        return serialize_indirect_reference(*value);
+
+    if (const auto* value = obj.as_array())
+        return serialize_array(*value);
+
+    // Streams must be checked before dictionaries: `as_dictionary()` deliberately
+    // reports a stream's content dictionary.
+    if (const auto* value = obj.as_stream())
+        return serialize_stream_object(*value);
+
+    if (const auto* value = obj.as_dictionary())
+        return serialize_dictionary(*value);
+
+    // A moved-from dictionary or stream alternative holds no value.
+    return {};
 }
 
 std::vector<std::byte> default_object_serializer::serialize_bool(bool value) const

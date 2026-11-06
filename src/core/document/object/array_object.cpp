@@ -90,4 +90,18 @@ array_object::storage_type::iterator array_object::erase(storage_type::const_ite
     return items_.erase(it);
 }
 
+bool array_object::operator==(const array_object& other) const noexcept
+{
+    if (items_.size() != other.items_.size())
+        return false;
+
+    for (std::size_t i = 0; i < items_.size(); ++i)
+    {
+        if (!(items_[i] == other.items_[i]))
+            return false;
+    }
+
+    return true;
+}
+
 } // namespace ripper::pdf::core

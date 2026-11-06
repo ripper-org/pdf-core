@@ -72,7 +72,9 @@ public:
     explicit content_stream(container_type items) noexcept;
 
     /// Construct a content stream from instructions only (no inline images).
-    explicit content_stream(std::vector<content_operation> operations) noexcept;
+    ///
+    /// @throws std::bad_alloc if the item sequence cannot be allocated.
+    explicit content_stream(std::vector<content_operation> operations);
 
     /// Append an instruction to the end of the stream.
     void append(content_operation operation);

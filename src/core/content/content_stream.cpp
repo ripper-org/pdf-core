@@ -1,6 +1,7 @@
 #include "ripper/pdf/core/content/content_stream.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <stdexcept>
 #include <utility>
 
@@ -21,14 +22,9 @@ void insert_item(content_stream::container_type& items, std::size_t index, conte
 
 content_stream::content_stream(container_type items) noexcept : items_(std::move(items)) {}
 
-content_stream::content_stream(std::vector<content_operation> operations) noexcept
+content_stream::content_stream(std::vector<content_operation> operations)
+    : items_(std::make_move_iterator(operations.begin()), std::make_move_iterator(operations.end()))
 {
-    items_.reserve(operations.size());
-
-    for (auto& operation : operations)
-    {
-        items_.emplace_back(std::move(operation));
-    }
 }
 
 void content_stream::append(content_operation operation)

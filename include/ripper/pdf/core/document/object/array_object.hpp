@@ -75,6 +75,10 @@ public:
     /// Erase the element at `it`.  Returns the iterator following the removed element.
     iterator erase(const_iterator it);
 
+    /// Element-wise equality comparison. Two arrays are equal if they have the
+    /// same length and all corresponding elements compare equal.
+    bool operator==(const array_object& other) const noexcept;
+
 private:
     storage_type items_;
 };

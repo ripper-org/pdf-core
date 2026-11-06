@@ -24,6 +24,9 @@ struct boolean_object
     {
         return value;
     }
+
+    /// Equality comparison. Two booleans are equal if their values match.
+    bool operator==(const boolean_object& other) const noexcept = default;
 };
 
 } // namespace ripper::pdf::core

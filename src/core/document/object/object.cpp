@@ -5,6 +5,8 @@
 #include "ripper/pdf/core/document/object/stream_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
+#include <utility>
+
 namespace ripper::pdf::core
 {
 /// Object implementation
@@ -29,12 +31,9 @@ object::object(name_object value) noexcept : value_(std::move(value)) {}
 
 object::object(array_object value) noexcept : value_(std::move(value)) {}
 
-object::object(dictionary_object value)
-    : value_(std::make_unique<dictionary_object>(std::move(value)))
-{
-}
+object::object(dictionary_object value) : value_(indirect<dictionary_object>{std::move(value)}) {}
 
-object::object(stream_object value) : value_(std::make_unique<stream_object>(std::move(value))) {}
+object::object(stream_object value) : value_(indirect<stream_object>{std::move(value)}) {}
 
 object::object(indirect_reference value) noexcept : value_(std::move(value)) {}
 
@@ -44,37 +43,11 @@ object::object(object&& other) noexcept = default;
 
 object& object::operator=(object&& other) noexcept = default;
 
-object::object(const object& other)
-    : value_(std::visit(
-          [](const auto& v) -> variant_type
-          {
-              using T = std::decay_t<decltype(v)>;
+object::object(const object& other) = default;
 
-              if constexpr (std::is_same_v<T, std::unique_ptr<dictionary_object>>)
-              {
-                  if (!v)
-                      return std::unique_ptr<dictionary_object>{};
-                  return std::make_unique<dictionary_object>(*v);
-              }
-              else if constexpr (std::is_same_v<T, std::unique_ptr<stream_object>>)
-              {
-                  if (!v)
-                      return std::unique_ptr<stream_object>{};
-                  return std::make_unique<stream_object>(*v);
-              }
-              else
-                  return v;
-          },
-          other.value_))
-{
-}
+object& object::operator=(const object& other) = default;
 
-object& object::operator=(const object& other)
-{
-    if (this != &other)
-        value_ = object(other).value_;
-    return *this;
-}
+bool object::operator==(const object& other) const noexcept = default;
 
 object object::clone() const
 {
@@ -125,12 +98,12 @@ bool object::is_array() const noexcept
 
 bool object::is_dictionary() const noexcept
 {
-    return std::holds_alternative<std::unique_ptr<dictionary_object>>(value_);
+    return std::holds_alternative<indirect<dictionary_object>>(value_);
 }
 
 bool object::is_stream() const noexcept
 {
-    return std::holds_alternative<std::unique_ptr<stream_object>>(value_);
+    return std::holds_alternative<indirect<stream_object>>(value_);
 }
 
 bool object::is_indirect_reference() const noexcept
@@ -190,12 +163,12 @@ array_object* object::as_array() noexcept
 
 const dictionary_object* object::as_dictionary() const noexcept
 {
-    const auto* ptr = std::get_if<std::unique_ptr<dictionary_object>>(&value_);
+    const auto* ptr = std::get_if<indirect<dictionary_object>>(&value_);
 
     if (ptr != nullptr)
         return ptr->get();
 
-    const auto* stream_ptr = std::get_if<std::unique_ptr<stream_object>>(&value_);
+    const auto* stream_ptr = std::get_if<indirect<stream_object>>(&value_);
     if (stream_ptr == nullptr)
         return nullptr;
 
@@ -204,12 +177,12 @@ const dictionary_object* object::as_dictionary() const noexcept
 
 dictionary_object* object::as_dictionary() noexcept
 {
-    auto* ptr = std::get_if<std::unique_ptr<dictionary_object>>(&value_);
+    auto* ptr = std::get_if<indirect<dictionary_object>>(&value_);
 
     if (ptr != nullptr)
         return ptr->get();
 
-    auto* stream_ptr = std::get_if<std::unique_ptr<stream_object>>(&value_);
+    auto* stream_ptr = std::get_if<indirect<stream_object>>(&value_);
     if (stream_ptr == nullptr)
         return nullptr;
 
@@ -218,13 +191,13 @@ dictionary_object* object::as_dictionary() noexcept
 
 const stream_object* object::as_stream() const noexcept
 {
-    const auto* ptr = std::get_if<std::unique_ptr<stream_object>>(&value_);
+    const auto* ptr = std::get_if<indirect<stream_object>>(&value_);
     return ptr != nullptr ? ptr->get() : nullptr;
 }
 
 stream_object* object::as_stream() noexcept
 {
-    auto* ptr = std::get_if<std::unique_ptr<stream_object>>(&value_);
+    auto* ptr = std::get_if<indirect<stream_object>>(&value_);
     return ptr != nullptr ? ptr->get() : nullptr;
 }
 
@@ -236,16 +209,6 @@ const indirect_reference* object::as_indirect_reference() const noexcept
 indirect_reference* object::as_indirect_reference() noexcept
 {
     return std::get_if<indirect_reference>(&value_);
-}
-
-const object::variant_type& object::variant() const noexcept
-{
-    return value_;
-}
-
-object::variant_type& object::variant() noexcept
-{
-    return value_;
 }
 
 } // namespace ripper::pdf::core

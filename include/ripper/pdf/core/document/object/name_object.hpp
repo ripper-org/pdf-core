@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 namespace ripper::pdf::core
 {
@@ -14,6 +15,15 @@ namespace ripper::pdf::core
 struct name_object
 {
     std::string value;
+
+    /// Equality comparison. Two names are equal if their key text matches.
+    ///
+    /// Compared as `string_view` so the comparison is genuinely `noexcept`,
+    /// which keeps `object::operator==`'s `noexcept` honest.
+    bool operator==(const name_object& other) const noexcept
+    {
+        return std::string_view{value} == std::string_view{other.value};
+    }
 };
 
 } // namespace ripper::pdf::core
