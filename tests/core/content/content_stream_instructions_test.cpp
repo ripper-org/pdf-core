@@ -1,4 +1,4 @@
-#include "ripper/pdf/core/content/content_stream.hpp"
+#include "ripper/pdf/core/content/content_stream_instructions.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <cstddef>
@@ -52,9 +52,9 @@ namespace
 }
 } // namespace
 
-TEST_CASE("a new content_stream is empty", "[content][content_stream]")
+TEST_CASE("a new content_stream_instructions is empty", "[content][content_stream_instructions]")
 {
-    const content_stream stream;
+    const content_stream_instructions stream;
 
     REQUIRE(stream.empty());
     REQUIRE(stream.size() == 0);
@@ -63,10 +63,10 @@ TEST_CASE("a new content_stream is empty", "[content][content_stream]")
     REQUIRE(stream.items().empty());
 }
 
-TEST_CASE("content_stream append preserves operation order and operands",
-          "[content][content_stream]")
+TEST_CASE("content_stream_instructions append preserves operation order and operands",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
 
     stream.append(make_operation("q"));
     stream.append(make_transform(1.0, 0.0, 0.0, 1.0, 100.0, 200.0));
@@ -88,9 +88,10 @@ TEST_CASE("content_stream append preserves operation order and operands",
     REQUIRE(as_operation(stream.at(2)).operator_name == "Q");
 }
 
-TEST_CASE("content_stream preserves operand value types", "[content][content_stream]")
+TEST_CASE("content_stream_instructions preserves operand value types",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
 
     stream.append(content_operation{"Tj",
                                     {object{std::int64_t{2}}, object{0.5},
@@ -107,10 +108,10 @@ TEST_CASE("content_stream preserves operand value types", "[content][content_str
     REQUIRE(operands[3].is_string());
 }
 
-TEST_CASE("content_stream stores an inline image as its own alternative",
-          "[content][content_stream][inline_image]")
+TEST_CASE("content_stream_instructions stores an inline image as its own alternative",
+          "[content][content_stream_instructions][inline_image]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
 
     stream.append(make_image({std::byte{0xFF}, std::byte{0x00}, std::byte{0x10}}));
 
@@ -127,10 +128,10 @@ TEST_CASE("content_stream stores an inline image as its own alternative",
             std::vector<std::byte>{std::byte{0xFF}, std::byte{0x00}, std::byte{0x10}});
 }
 
-TEST_CASE("content_stream keeps instructions and inline images in stream order",
-          "[content][content_stream][inline_image]")
+TEST_CASE("content_stream_instructions keeps instructions and inline images in stream order",
+          "[content][content_stream_instructions][inline_image]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_image({std::byte{0x01}}));
     stream.append(make_operation("Q"));
@@ -143,10 +144,10 @@ TEST_CASE("content_stream keeps instructions and inline images in stream order",
     REQUIRE(std::holds_alternative<content_operation>(stream[2]));
 }
 
-TEST_CASE("content_stream insert places an operation at the requested index",
-          "[content][content_stream]")
+TEST_CASE("content_stream_instructions insert places an operation at the requested index",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_operation("Q"));
 
@@ -158,9 +159,10 @@ TEST_CASE("content_stream insert places an operation at the requested index",
     REQUIRE(as_operation(stream[2]).operator_name == "Q");
 }
 
-TEST_CASE("content_stream insert supports the beginning and the end", "[content][content_stream]")
+TEST_CASE("content_stream_instructions insert supports the beginning and the end",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
 
     stream.insert(0, make_operation("BT"));
@@ -172,10 +174,10 @@ TEST_CASE("content_stream insert supports the beginning and the end", "[content]
     REQUIRE(as_operation(stream[2]).operator_name == "ET");
 }
 
-TEST_CASE("content_stream insert places an inline image at the requested index",
-          "[content][content_stream][inline_image]")
+TEST_CASE("content_stream_instructions insert places an inline image at the requested index",
+          "[content][content_stream_instructions][inline_image]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_operation("Q"));
 
@@ -188,9 +190,10 @@ TEST_CASE("content_stream insert places an inline image at the requested index",
     REQUIRE(as_image(stream[1]).data == std::vector<std::byte>{std::byte{0x42}});
 }
 
-TEST_CASE("content_stream insert rejects an index past the end", "[content][content_stream]")
+TEST_CASE("content_stream_instructions insert rejects an index past the end",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
 
     REQUIRE_THROWS_AS(stream.insert(2, make_operation("Q")), std::out_of_range);
@@ -198,10 +201,10 @@ TEST_CASE("content_stream insert rejects an index past the end", "[content][cont
     REQUIRE(stream.size() == 1);
 }
 
-TEST_CASE("content_stream erase removes the item at the requested index",
-          "[content][content_stream]")
+TEST_CASE("content_stream_instructions erase removes the item at the requested index",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_operation("w"));
     stream.append(make_operation("Q"));
@@ -213,9 +216,10 @@ TEST_CASE("content_stream erase removes the item at the requested index",
     REQUIRE(as_operation(stream[1]).operator_name == "Q");
 }
 
-TEST_CASE("content_stream erase removes an inline image", "[content][content_stream][inline_image]")
+TEST_CASE("content_stream_instructions erase removes an inline image",
+          "[content][content_stream_instructions][inline_image]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_image({std::byte{0x01}}));
 
@@ -225,25 +229,28 @@ TEST_CASE("content_stream erase removes an inline image", "[content][content_str
     REQUIRE(stream.inline_image_count() == 0);
 }
 
-TEST_CASE("content_stream erase rejects an out-of-range index", "[content][content_stream]")
+TEST_CASE("content_stream_instructions erase rejects an out-of-range index",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
 
     REQUIRE_THROWS_AS(stream.erase(1), std::out_of_range);
     REQUIRE(stream.size() == 1);
 }
 
-TEST_CASE("content_stream at rejects an out-of-range index", "[content][content_stream]")
+TEST_CASE("content_stream_instructions at rejects an out-of-range index",
+          "[content][content_stream_instructions]")
 {
-    const content_stream stream;
+    const content_stream_instructions stream;
 
     REQUIRE_THROWS_AS(stream.at(0), std::out_of_range);
 }
 
-TEST_CASE("content_stream clear removes every item", "[content][content_stream]")
+TEST_CASE("content_stream_instructions clear removes every item",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_image({std::byte{0x01}}));
     stream.append(make_operation("Q"));
@@ -256,13 +263,14 @@ TEST_CASE("content_stream clear removes every item", "[content][content_stream]"
     REQUIRE(stream.inline_image_count() == 0);
 }
 
-TEST_CASE("content_stream copy is deep and independent", "[content][content_stream][copy]")
+TEST_CASE("content_stream_instructions copy is deep and independent",
+          "[content][content_stream_instructions][copy]")
 {
-    content_stream original;
+    content_stream_instructions original;
     original.append(make_operation("q"));
     original.append(make_transform(1.0, 0.0, 0.0, 1.0, 10.0, 20.0));
 
-    content_stream copy = original;
+    content_stream_instructions copy = original;
 
     as_operation(copy.at(0)).operator_name = "Q";
     as_operation(copy.at(1)).operands[4] = object{99.0};
@@ -276,12 +284,13 @@ TEST_CASE("content_stream copy is deep and independent", "[content][content_stre
     REQUIRE(as_operation(copy.at(1)).operands[4].as_number()->as_real() == 99.0);
 }
 
-TEST_CASE("content_stream copy deep-copies inline images", "[content][content_stream][copy]")
+TEST_CASE("content_stream_instructions copy deep-copies inline images",
+          "[content][content_stream_instructions][copy]")
 {
-    content_stream original;
+    content_stream_instructions original;
     original.append(make_image({std::byte{0x01}, std::byte{0x02}}));
 
-    content_stream copy = original;
+    content_stream_instructions copy = original;
     auto& copy_image = std::get<inline_image>(copy.at(0));
     copy_image.data = {std::byte{0xAA}};
     copy_image.dictionary.set("W", object{std::int64_t{9}});
@@ -291,13 +300,13 @@ TEST_CASE("content_stream copy deep-copies inline images", "[content][content_st
     REQUIRE(original_image.dictionary.get_number("W")->as_integer() == 2);
 }
 
-TEST_CASE("content_stream copy assignment is deep and independent",
-          "[content][content_stream][copy]")
+TEST_CASE("content_stream_instructions copy assignment is deep and independent",
+          "[content][content_stream_instructions][copy]")
 {
-    content_stream source;
+    content_stream_instructions source;
     source.append(make_operation("q"));
 
-    content_stream target;
+    content_stream_instructions target;
     target.append(make_operation("BT"));
     target = source;
 
@@ -309,9 +318,10 @@ TEST_CASE("content_stream copy assignment is deep and independent",
     REQUIRE(as_operation(target.at(0)).operator_name == "Q");
 }
 
-TEST_CASE("content_stream iterates items in stream order", "[content][content_stream]")
+TEST_CASE("content_stream_instructions iterates items in stream order",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
     stream.append(make_operation("w"));
     stream.append(make_operation("Q"));
@@ -332,29 +342,29 @@ TEST_CASE("content_stream iterates items in stream order", "[content][content_st
     REQUIRE(const_stream.cbegin() != const_stream.cend());
 }
 
-TEST_CASE("content_stream can be constructed from an existing operation vector",
-          "[content][content_stream]")
+TEST_CASE("content_stream_instructions can be constructed from an existing operation vector",
+          "[content][content_stream_instructions]")
 {
     std::vector<content_operation> operations;
     operations.push_back(make_operation("q"));
     operations.push_back(make_operation("Q"));
 
-    const content_stream stream{std::move(operations)};
+    const content_stream_instructions stream{std::move(operations)};
 
     REQUIRE(stream.size() == 2);
     REQUIRE(as_operation(stream.at(0)).operator_name == "q");
     REQUIRE(as_operation(stream.at(1)).operator_name == "Q");
 }
 
-TEST_CASE("content_stream can be constructed from an existing item vector",
-          "[content][content_stream]")
+TEST_CASE("content_stream_instructions can be constructed from an existing item vector",
+          "[content][content_stream_instructions]")
 {
     std::vector<content_item> items;
     items.push_back(make_operation("q"));
     items.push_back(make_image({std::byte{0x07}}));
     items.push_back(make_operation("Q"));
 
-    const content_stream stream{std::move(items)};
+    const content_stream_instructions stream{std::move(items)};
 
     REQUIRE(stream.size() == 3);
     REQUIRE(stream.operation_count() == 2);
@@ -362,9 +372,10 @@ TEST_CASE("content_stream can be constructed from an existing item vector",
     REQUIRE(as_image(stream.at(1)).data == std::vector<std::byte>{std::byte{0x07}});
 }
 
-TEST_CASE("content_stream items exposes the raw sequence", "[content][content_stream]")
+TEST_CASE("content_stream_instructions items exposes the raw sequence",
+          "[content][content_stream_instructions]")
 {
-    content_stream stream;
+    content_stream_instructions stream;
     stream.append(make_operation("q"));
 
     auto& items = stream.items();

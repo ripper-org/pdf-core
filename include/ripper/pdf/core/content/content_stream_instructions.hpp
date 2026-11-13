@@ -51,30 +51,31 @@ using content_item = std::variant<content_operation, inline_image>;
 
 /// An ordered sequence of content-stream instructions and inline images.
 ///
-/// This is the 1:1 representation of a PDF content stream's data (§7.8.2). It is
-/// a value type: copies are deep and independent, so a stream can be built,
+/// This is the 1:1 representation of a content stream's data, which ISO 32000-1
+/// (§4.14, §7.8.2) defines as "a sequence of instructions" (§7.8.2). It is a
+/// value type: copies are deep and independent, so instructions can be built,
 /// inspected, diffed, and serialized without being tied to a document.
 ///
-/// The stream is deliberately flat: `q`/`Q`, `BT`/`ET`, `BMC`/`BDC`/`EMC`, and
+/// The sequence is deliberately flat: `q`/`Q`, `BT`/`ET`, `BMC`/`BDC`/`EMC`, and
 /// `BX`/`EX` are stack operations, not nesting. Resolving them into a tree is a
 /// job for a read-side analyzer, never for this container.
-class content_stream
+class content_stream_instructions
 {
 public:
     using container_type = std::vector<content_item>;
     using iterator = container_type::iterator;
     using const_iterator = container_type::const_iterator;
 
-    /// Construct an empty content stream.
-    content_stream() noexcept = default;
+    /// Construct an empty instruction sequence.
+    content_stream_instructions() noexcept = default;
 
-    /// Construct a content stream from an existing item sequence.
-    explicit content_stream(container_type items) noexcept;
+    /// Construct an instruction sequence from an existing item sequence.
+    explicit content_stream_instructions(container_type items) noexcept;
 
-    /// Construct a content stream from instructions only (no inline images).
+    /// Construct an instruction sequence from instructions only (no inline images).
     ///
     /// @throws std::bad_alloc if the item sequence cannot be allocated.
-    explicit content_stream(std::vector<content_operation> operations);
+    explicit content_stream_instructions(std::vector<content_operation> operations);
 
     /// Append an instruction to the end of the stream.
     void append(content_operation operation);
