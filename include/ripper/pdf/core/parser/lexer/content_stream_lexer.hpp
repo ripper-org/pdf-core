@@ -40,14 +40,8 @@ struct content_stream_token
 
 /// Tokenizes content-stream bytes (ISO 32000-1 §7.8.2).
 ///
-/// This lexer owns the content-stream grammar end to end. It does not use
-/// `pdf_lexer`/`parse_value`, because content streams differ from general PDF
-/// objects: bare keywords are operators, `true`/`false`/`null` are operands,
-/// indirect references are forbidden, and inline-image data is raw bytes that
-/// must never be lexed.
-///
-/// It deliberately does not group operands into instructions — that is the
-/// parser's job. Keeping the two apart leaves each layer testable on its own.
+/// TODO: eventually, we may rewrite the lexer/parsing logic to reuse some object parsing
+/// logic. Opting to leave them separate for now to ensure the behavior is consistent.
 class content_stream_lexer
 {
 public:
