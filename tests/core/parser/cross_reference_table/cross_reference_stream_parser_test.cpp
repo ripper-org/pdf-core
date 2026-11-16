@@ -41,13 +41,17 @@ stream_object make_xref_stream(std::int64_t size, array_object w, std::vector<st
 
     return stream_object{std::move(dict), stream{std::move(data)}};
 }
+cross_reference_section parse_xref(stream_object stream_obj)
+{
+    return cross_reference_stream_parser::parse(stream_obj);
+}
 } // namespace
 
 TEST_CASE("cross_reference_stream_parser reads a valid entry", "[parser][xref_stream]")
 {
     auto stream_obj = make_xref_stream(1, widths(1, 2, 1), bytes({1, 0x00, 0x0A, 0}));
 
-    const auto section = cross_reference_stream_parser::parse(stream_obj);
+    const auto section = parse_xref(stream_obj);
 
     const auto* entry = section.find(0);
     REQUIRE(entry != nullptr);
@@ -61,18 +65,16 @@ TEST_CASE("cross_reference_stream_parser rejects oversized field widths",
     // The original 32-bit entry-size sum wrapped to 1 when w1 was 2^32 - 1,
     // allowing the field read to start outside the entry.
     auto stream_obj = make_xref_stream(1, widths(1, 4294967295LL, 1), bytes({1}));
-    REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(stream_obj), parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(stream_obj), parse_exception);
 }
 
 TEST_CASE("cross_reference_stream_parser rejects unsupported widths",
           "[parser][xref_stream][bounds]")
 {
-    REQUIRE_THROWS_AS(
-        cross_reference_stream_parser::parse(make_xref_stream(1, widths(9, 0, 0), bytes({1}))),
-        parse_exception);
-    REQUIRE_THROWS_AS(
-        cross_reference_stream_parser::parse(make_xref_stream(1, widths(-1, 1, 1), bytes({1}))),
-        parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(make_xref_stream(1, widths(9, 0, 0), bytes({1}))),
+                      parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(make_xref_stream(1, widths(-1, 1, 1), bytes({1}))),
+                      parse_exception);
 
     // /W entries must be integers, not reals.
     dictionary_object dict;
@@ -86,7 +88,7 @@ TEST_CASE("cross_reference_stream_parser rejects unsupported widths",
     dict.set("W", object{std::move(w)});
 
     stream_object stream_obj{std::move(dict), stream{bytes({1})}};
-    REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(stream_obj), parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(stream_obj), parse_exception);
 }
 
 TEST_CASE("cross_reference_stream_parser requires exactly three widths", "[parser][xref_stream]")
@@ -101,22 +103,19 @@ TEST_CASE("cross_reference_stream_parser requires exactly three widths", "[parse
     dict.set("W", object{std::move(w)});
 
     stream_object stream_obj{std::move(dict), stream{bytes({1, 1})}};
-    REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(stream_obj), parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(stream_obj), parse_exception);
 }
 
 TEST_CASE("cross_reference_stream_parser rejects zero-width entries", "[parser][xref_stream]")
 {
-    REQUIRE_THROWS_AS(
-        cross_reference_stream_parser::parse(make_xref_stream(1, widths(0, 0, 0), bytes({}))),
-        parse_exception);
+    REQUIRE_THROWS_AS(parse_xref(make_xref_stream(1, widths(0, 0, 0), bytes({}))), parse_exception);
 }
 
 TEST_CASE("cross_reference_stream_parser rejects truncated entries",
           "[parser][xref_stream][bounds]")
 {
     // Four bytes are needed for the (1, 2, 1) layout.
-    REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(
-                          make_xref_stream(1, widths(1, 2, 1), bytes({1, 0x00, 0x0A}))),
+    REQUIRE_THROWS_AS(parse_xref(make_xref_stream(1, widths(1, 2, 1), bytes({1, 0x00, 0x0A}))),
                       parse_exception);
 }
 
@@ -131,7 +130,7 @@ TEST_CASE("cross_reference_stream_parser validates /Index", "[parser][xref_strea
         index.push_back(object{std::int64_t{0}});
         stream_obj.dictionary().set("Index", object{std::move(index)});
 
-        REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(stream_obj), parse_exception);
+        REQUIRE_THROWS_AS(parse_xref(stream_obj), parse_exception);
     }
 
     SECTION("negative first object number")
@@ -143,7 +142,7 @@ TEST_CASE("cross_reference_stream_parser validates /Index", "[parser][xref_strea
         index.push_back(object{std::int64_t{1}});
         stream_obj.dictionary().set("Index", object{std::move(index)});
 
-        REQUIRE_THROWS_AS(cross_reference_stream_parser::parse(stream_obj), parse_exception);
+        REQUIRE_THROWS_AS(parse_xref(stream_obj), parse_exception);
     }
 }
 
@@ -152,7 +151,7 @@ TEST_CASE("cross_reference_stream_parser treats unknown entry types as free",
 {
     auto stream_obj = make_xref_stream(1, widths(1, 2, 1), bytes({7, 0xFF, 0xFF, 0xFF}));
 
-    const auto section = cross_reference_stream_parser::parse(stream_obj);
+    const auto section = parse_xref(stream_obj);
 
     const auto* entry = section.find(0);
     REQUIRE(entry != nullptr);

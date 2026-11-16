@@ -6,6 +6,8 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
+#include <utility>
+
 namespace ripper::pdf::core
 {
 page::page(indirect_object& obj) noexcept : object_view(obj) {}
@@ -33,5 +35,52 @@ std::optional<class pages> page::parent()
         throw logic_exception{"Page /Parent does not have /Type /Pages"};
 
     return pages{*resolved};
+}
+
+page_contents page::content()
+{
+    auto* dict = obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page content is not a dictionary"};
+
+    const auto* contents = dict->get("Contents");
+    if (contents == nullptr || contents->is_null())
+        return page_contents{};
+
+    auto& doc = obj().identity().owner();
+
+    const auto resolve = [&](const indirect_reference& ref) -> content_stream
+    {
+        auto* resolved = doc.resolve_object(ref);
+        if (resolved == nullptr)
+        throw logic_exception{"Page /Contents reference cannot be resolved"};
+
+        if (resolved->content().as_stream() == nullptr)
+            throw logic_exception{"Page /Contents reference does not point to a stream"};
+
+        return content_stream{*resolved};
+    };
+
+    if (const auto* ref = contents->as_indirect_reference())
+        return page_contents{{resolve(*ref)}, false};
+
+    const auto* array = contents->as_array();
+    if (array == nullptr)
+        throw logic_exception{"Page /Contents must be a stream or an array of streams"};
+
+    std::vector<content_stream> streams;
+    streams.reserve(array->size());
+
+    for (std::size_t i = 0; i < array->size(); ++i)
+    {
+        const auto* ref = array->at(i).as_indirect_reference();
+        if (ref == nullptr)
+            throw logic_exception{
+                "Page /Contents array entries must be indirect stream references"};
+
+        streams.push_back(resolve(*ref));
+    }
+
+    return page_contents{std::move(streams), true};
 }
 } // namespace ripper::pdf::core

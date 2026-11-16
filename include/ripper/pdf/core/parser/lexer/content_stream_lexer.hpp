@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ripper/pdf/core/content/content_stream_instructions.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/content/content_item.hpp"
 #include "ripper/pdf/core/util/resource_limits.hpp"
 
 #include <cstddef>

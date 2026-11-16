@@ -11,8 +11,8 @@ namespace ripper::pdf::core
 {
 namespace
 {
-void serialize_operation(std::vector<std::byte>& out, const content_operation& operation,
-                         const default_object_serializer& serializer)
+void append_operation(std::vector<std::byte>& out, const content_operation& operation,
+                      const default_object_serializer& serializer)
 {
     for (const auto& operand : operation.operands)
     {
@@ -24,8 +24,8 @@ void serialize_operation(std::vector<std::byte>& out, const content_operation& o
     byte::append_bytes(out, '\n');
 }
 
-void serialize_inline_image(std::vector<std::byte>& out, const inline_image& image,
-                            const default_object_serializer& serializer)
+void append_inline_image(std::vector<std::byte>& out, const inline_image& image,
+                         const default_object_serializer& serializer)
 {
     byte::append_bytes(out, "BI\n");
 
@@ -44,24 +44,59 @@ void serialize_inline_image(std::vector<std::byte>& out, const inline_image& ima
     out.append_range(image.data);
     byte::append_bytes(out, "\nEI\n");
 }
+
+void append_item(std::vector<std::byte>& out, const content_item& item,
+                 const default_object_serializer& serializer)
+{
+    if (const auto* operation = std::get_if<content_operation>(&item))
+    {
+        append_operation(out, *operation, serializer);
+        return;
+    }
+
+    append_inline_image(out, std::get<inline_image>(item), serializer);
+}
 } // namespace
 
-std::vector<std::byte>
-content_stream_serializer::serialize(const content_stream_instructions& instructions)
+std::vector<std::byte> content_stream_serializer::serialize(const content_operation& operation)
+{
+    std::vector<std::byte> out;
+    append_operation(out, operation, default_object_serializer{});
+    return out;
+}
+
+std::vector<std::byte> content_stream_serializer::serialize(const inline_image& image)
+{
+    std::vector<std::byte> out;
+    append_inline_image(out, image, default_object_serializer{});
+    return out;
+}
+
+std::vector<std::byte> content_stream_serializer::serialize(const content_item& item)
+{
+    std::vector<std::byte> out;
+    append_item(out, item, default_object_serializer{});
+    return out;
+}
+
+std::vector<std::byte> content_stream_serializer::serialize(std::span<const content_item> items)
 {
     const default_object_serializer object_serializer;
     std::vector<std::byte> out;
 
-    for (const auto& item : instructions.items())
-    {
-        if (const auto* operation = std::get_if<content_operation>(&item))
-        {
-            serialize_operation(out, *operation, object_serializer);
-            continue;
-        }
+    for (const auto& item : items)
+        append_item(out, item, object_serializer);
 
-        serialize_inline_image(out, std::get<inline_image>(item), object_serializer);
-    }
+    return out;
+}
+
+std::vector<std::byte> content_stream_serializer::serialize(const instruction_stream& stream)
+{
+    const default_object_serializer object_serializer;
+    std::vector<std::byte> out;
+
+    for (const auto& item : stream.operations())
+        append_item(out, item, object_serializer);
 
     return out;
 }

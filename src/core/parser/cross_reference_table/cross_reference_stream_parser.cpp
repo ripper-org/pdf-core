@@ -15,10 +15,12 @@
 namespace ripper::pdf::core
 {
 
-cross_reference_section cross_reference_stream_parser::parse(const stream_object& stream_obj)
+cross_reference_section cross_reference_stream_parser::parse(const stream_object& stream_obj,
+                                                             const resource_limits& limits)
 {
     const auto& dict = stream_obj.dictionary();
-    const auto content = stream_obj.raw();
+    const auto decoded = stream_obj.decode(limits);
+    const auto content = decoded.bytes();
 
     // PDF 32000-1 §7.5.8: an xref stream must be /Type /XRef. Rejecting anything
     // else prevents a lookalike stream from being misinterpreted as a table.

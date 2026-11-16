@@ -22,9 +22,9 @@ class document;
 class object_stream_parser
 {
 public:
-    /// Parse all objects from a decoded object stream.
+    /// Parse all objects from an object stream.
     ///
-    /// The stream must already be decoded (i.e. `content()` called).
+    /// The stream is decoded on demand; `raw()` bytes are left untouched.
     /// Returns a vector of indirect objects with their identities set.
     ///
     /// @throws parse_exception if required keys are missing or data is malformed.

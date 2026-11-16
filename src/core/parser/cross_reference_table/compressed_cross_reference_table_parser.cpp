@@ -78,9 +78,7 @@ compressed_cross_reference_table_parser::parse(document& doc, std::string_view c
     if (os == nullptr)
         throw parse_exception{"Xref stream indirect object is not a stream"};
 
-    (void)os->content(doc.resource_limits());
-
-    auto section = cross_reference_stream_parser::parse(*os);
+    auto section = cross_reference_stream_parser::parse(*os, doc.resource_limits());
 
     trailer trailer_obj{os->dictionary()};
 

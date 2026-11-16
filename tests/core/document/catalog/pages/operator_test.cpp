@@ -1,4 +1,4 @@
-#include "ripper/pdf/core/content/operator.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/content/operator.hpp"
 
 #include <array>
 #include <catch2/catch_test_macros.hpp>

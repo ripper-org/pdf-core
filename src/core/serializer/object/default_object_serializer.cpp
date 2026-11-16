@@ -3,7 +3,6 @@
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
-#include "ripper/pdf/core/filter/filter_manager.hpp"
 #include "ripper/pdf/core/util/byte.hpp"
 #include "ripper/pdf/core/util/text.hpp"
 
@@ -170,31 +169,16 @@ default_object_serializer::serialize_stream_object(const stream_object& stream_o
     const auto dict = stream_obj.dictionary();
     const auto stream = stream_obj.stream();
 
-    if (stream_obj.is_decoded())
-    {
-        auto encoded = filter_manager::encode(dict, stream.data());
-
-        dictionary_object encoded_dict = dict;
-        encoded_dict.set("Length", object{static_cast<std::int64_t>(encoded.size())});
-
-        byte::append_bytes(out, serialize_dictionary(encoded_dict));
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, "stream");
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, encoded);
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, "endstream");
-    }
-    else
-    {
-        byte::append_bytes(out, serialize_dictionary(dict));
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, "stream");
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, stream.data());
-        byte::append_bytes(out, line_break_character_);
-        byte::append_bytes(out, "endstream");
-    }
+    // `stream()` always holds the bytes as stored. Decoding is a separate cache
+    // (`decoded()`), so a stream that was merely inspected is written back
+    // verbatim instead of being re-encoded.
+    byte::append_bytes(out, serialize_dictionary(dict));
+    byte::append_bytes(out, line_break_character_);
+    byte::append_bytes(out, "stream");
+    byte::append_bytes(out, line_break_character_);
+    byte::append_bytes(out, stream.data());
+    byte::append_bytes(out, line_break_character_);
+    byte::append_bytes(out, "endstream");
 
     return out;
 }

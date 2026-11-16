@@ -1,4 +1,4 @@
-#include "ripper/pdf/core/content/content_stream_instructions.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/content/content_item.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/parser/lexer/content_stream_lexer.hpp"

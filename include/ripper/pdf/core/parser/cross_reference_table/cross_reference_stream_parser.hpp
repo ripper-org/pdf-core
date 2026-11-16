@@ -21,14 +21,15 @@ namespace ripper::pdf::core
 class cross_reference_stream_parser
 {
 public:
-    /// Parse a decoded xref stream object into a cross_reference_section.
+    /// Parse an xref stream object into a cross_reference_section.
     ///
-    /// The stream must already be decoded (i.e. `stream_object::content()` called).
+    /// The stream is decoded on demand; `raw()` bytes are left untouched.
     /// Reads `/W`, `/Index`, `/Size` from the dictionary_object and interprets the binary
     /// stream data according to the xref stream format.
     ///
     /// @throws parse_exception if required keys are missing or data is malformed.
-    [[nodiscard]] static cross_reference_section parse(const stream_object& stream_obj);
+    [[nodiscard]] static cross_reference_section parse(const stream_object& stream_obj,
+                                                       const resource_limits& limits = {});
 
 private:
     struct column_widths

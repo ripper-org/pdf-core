@@ -22,8 +22,8 @@ std::vector<indirect_object> object_stream_parser::parse(document& doc,
     if (type == nullptr || type->value != "ObjStm")
         throw parse_exception{"Object stream must have /Type /ObjStm"};
 
-    const auto content = stream_obj.raw();
-    const auto layout = object_stream_layout::parse(content, dict, doc.resource_limits());
+    const auto decoded = stream_obj.decode(doc.resource_limits());
+    const auto layout = object_stream_layout::parse(decoded.bytes(), dict, doc.resource_limits());
 
     std::vector<indirect_object> result;
     result.reserve(layout.entries().size());

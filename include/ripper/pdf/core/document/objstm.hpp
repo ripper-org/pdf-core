@@ -52,7 +52,7 @@ public:
     /// and returns its byte range. Returns `std::nullopt` if the index is
     /// out of bounds.
     ///
-    /// The stream must already be decoded (`content()` called).
+    /// The stream is decoded on demand; `raw()` bytes are left untouched.
     ///
     /// @throws parse_exception if the stream header is malformed or contains
     ///         out-of-bounds or descending byte ranges.

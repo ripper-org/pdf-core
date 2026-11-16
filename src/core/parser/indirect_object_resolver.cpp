@@ -1,10 +1,10 @@
 #include "ripper/pdf/core/parser/indirect_object_resolver.hpp"
 
+#include "core/parser/object_stream_layout.hpp"
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_manager.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_section.hpp"
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
-#include "ripper/pdf/core/document/objstm.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/parser/lexer/pdf_lexer.hpp"
 #include "ripper/pdf/core/parser/value_parsing.hpp"
@@ -253,21 +253,17 @@ std::string indirect_object_resolver::resolve_compressed(indirect_reference ref,
     if (os == nullptr)
         throw parse_exception{"Object stream " + std::to_string(objstm_num) + " is not a stream"};
 
-    // Decode if needed
-    (void)os->content(document_->resource_limits());
+    // Find and copy the requested object in one decode of the object stream.
+    const auto limits = document_->resource_limits();
+    const auto decoded = os->decode(limits);
+    const auto layout = object_stream_layout::parse(decoded.bytes(), os->dictionary(), limits);
+    const auto entries = layout.entries();
 
-    // Find the byte range for the requested object
-    objstm view{*objstm_obj};
-    auto range = view.object_offset(objstm_index);
-    if (!range.has_value())
+    if (objstm_index >= entries.size())
         throw parse_exception{"Object " + std::to_string(ref.object_number()) +
                               " not found in object stream " + std::to_string(objstm_num)};
 
-    // Copy the bytes
-    auto raw = os->raw();
-    const auto body =
-        checked_subspan(raw, byte_offset::from_integer(range->offset),
-                        byte_count::from_integer(range->length), "Object stream body");
+    const auto body = entries[objstm_index].body();
 
     std::string result(body.size(), '\0');
     for (std::size_t i = 0; i < body.size(); ++i)

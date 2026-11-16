@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document/object/array_object.hpp"
 #include "ripper/pdf/core/document/object/boolean_object.hpp"
+#include "ripper/pdf/core/document/object/helpers/decoded_stream.hpp"
 #include "ripper/pdf/core/document/object/helpers/stream.hpp"
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
 #include "ripper/pdf/core/document/object/name_object.hpp"
@@ -183,35 +184,26 @@ public:
     /// actual stream size.
     void sync_length();
 
-    /// Returns true if the stream data has been decoded via `content()`.
-    [[nodiscard]] bool is_decoded() const noexcept;
-
-    /// Manually set the decoded state flag.
-    void set_decoded(bool state) noexcept;
-
-    /// Returns decoded content. If not yet decoded, decodes in-place using the
-    /// static filter_manager. After this call, stream().data() returns decoded
-    /// bytes and raw bytes are lost.
-    /// If no /Filter is present, data is inherently decoded (no-op).
+    /// Decodes the stream without modifying its stored bytes.
+    ///
+    /// Unfiltered streams return a borrowed view of `raw()`. Filtered streams
+    /// return an owned buffer. Decoding is not cached, so repeated calls decode
+    /// again. `raw()` always keeps returning the original on-disk payload.
     ///
     /// @param limits bounds the decoded output size; defaults are used when omitted.
     /// @throws parse_exception if /Filter is unknown or the output exceeds `limits`.
-    [[nodiscard]] std::span<const std::byte> content(const resource_limits& limits = {});
+    [[nodiscard]] decoded_stream decode(const resource_limits& limits = {}) const;
 
-    /// Returns the current stream data as-is. Does not trigger decode.
-    /// Before content(): returns raw bytes.
-    /// After content(): returns decoded bytes.
+    /// Returns the stream data as stored (the on-disk bytes). Never decodes.
     [[nodiscard]] std::span<const std::byte> raw() const noexcept;
 
     /// Equality comparison. Two streams are equal if their content dictionaries
-    /// and byte payloads match. The decoded-state flag is cache state, not
-    /// object identity, and is deliberately ignored.
+    /// and byte payloads match.
     bool operator==(const stream_object& other) const noexcept;
 
 private:
     class dictionary_object dict_;
     class stream stream_;
-    bool is_decoded_ = false;
 };
 
 /// A discriminated union representing any PDF direct object.

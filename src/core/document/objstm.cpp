@@ -31,8 +31,12 @@ std::uint32_t objstm::first_offset() const
     if (os == nullptr)
         throw parse_exception{"Object is not a stream"};
 
+    const auto& limits = obj().identity().owner().resource_limits();
+    const auto decoded = os->decode(limits);
+
     return checked_numeric::narrow<std::uint32_t>(
-        object_stream_first(os->dictionary(), os->raw().size()).value(), "Object stream /First");
+        object_stream_first(os->dictionary(), decoded.bytes().size()).value(),
+        "Object stream /First");
 }
 
 std::optional<class objstm> objstm::extension()
@@ -58,13 +62,13 @@ std::optional<class objstm> objstm::extension()
 
 std::optional<objstm::object_range> objstm::object_offset(std::uint32_t index) const
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    auto* os = const_cast<objstm*>(this)->obj().content().as_stream();
+    const auto* os = obj().content().as_stream();
     if (os == nullptr)
         return std::nullopt;
 
     const auto& limits = obj().identity().owner().resource_limits();
-    const auto layout = object_stream_layout::parse(os->raw(), os->dictionary(), limits);
+    const auto decoded = os->decode(limits);
+    const auto layout = object_stream_layout::parse(decoded.bytes(), os->dictionary(), limits);
     const auto entries = layout.entries();
 
     if (index >= entries.size())

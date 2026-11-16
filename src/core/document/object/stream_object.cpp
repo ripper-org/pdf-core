@@ -50,31 +50,13 @@ void stream_object::sync_length()
     dict_.set("Length", object(static_cast<std::int64_t>(length)));
 }
 
-bool stream_object::is_decoded() const noexcept
+decoded_stream stream_object::decode(const resource_limits& limits) const
 {
-    return is_decoded_;
-}
-
-void stream_object::set_decoded(bool state) noexcept
-{
-    is_decoded_ = state;
-}
-
-std::span<const std::byte> stream_object::content(const resource_limits& limits)
-{
-    if (is_decoded_)
-        return stream_.data();
-
+    // Unfiltered streams are already in decoded form; borrow the stored bytes.
     if (!dict_.contains("Filter"))
-    {
-        is_decoded_ = true;
-        return stream_.data();
-    }
+        return decoded_stream{raw()};
 
-    auto decoded = filter_manager::decode(dict_, stream_.data(), limits);
-    stream_.data() = std::move(decoded);
-    is_decoded_ = true;
-    return stream_.data();
+    return decoded_stream{filter_manager::decode(dict_, raw(), limits)};
 }
 
 std::span<const std::byte> stream_object::raw() const noexcept
