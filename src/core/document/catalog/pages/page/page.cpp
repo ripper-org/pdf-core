@@ -6,25 +6,26 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
+#include <string>
 #include <utility>
 
 namespace ripper::pdf::core
 {
 page::page(indirect_object& obj) noexcept : object_view(obj) {}
 
-std::optional<class pages> page::parent()
+pages page::parent()
 {
     const auto* d = obj().content().as_dictionary();
     if (d == nullptr)
-        return std::nullopt;
+        throw logic_exception{"Page object view object is not a dictionary"};
 
     const auto* parent_ref = d->get_indirect_reference("Parent");
     if (parent_ref == nullptr)
-        return std::nullopt;
+        throw logic_exception{"Page /Parent is not an indirect referece"};
 
     auto* resolved = obj().identity().owner().resolve_object(*parent_ref);
     if (resolved == nullptr)
-        return std::nullopt;
+        throw logic_exception{"Could not resolve Page /Parent indirect refernce"};
 
     const auto* parent_dict = resolved->content().as_dictionary();
     if (parent_dict == nullptr)
@@ -32,7 +33,7 @@ std::optional<class pages> page::parent()
 
     const auto* type = parent_dict->get_name("Type");
     if (type == nullptr || type->value != "Pages")
-        throw logic_exception{"Page /Parent does not have /Type /Pages"};
+        throw logic_exception{"Page /Parent object does not have /Type /Pages"};
 
     return pages{*resolved};
 }
@@ -53,7 +54,7 @@ page_contents page::content()
     {
         auto* resolved = doc.resolve_object(ref);
         if (resolved == nullptr)
-        throw logic_exception{"Page /Contents reference cannot be resolved"};
+            throw logic_exception{"Page /Contents reference cannot be resolved"};
 
         if (resolved->content().as_stream() == nullptr)
             throw logic_exception{"Page /Contents reference does not point to a stream"};

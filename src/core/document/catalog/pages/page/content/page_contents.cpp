@@ -6,7 +6,8 @@ namespace ripper::pdf::core
 {
 page_contents::page_contents(std::vector<content_stream> streams) noexcept
     : streams_(std::move(streams))
-{}
+{
+}
 
 bool page_contents::empty() const noexcept
 {

@@ -4,8 +4,6 @@
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
 
-#include <optional>
-
 namespace ripper::pdf::core
 {
 class pages;
@@ -20,7 +18,7 @@ public:
     ///
     /// Per the PDF spec (§7.7.3.3) the /Parent of every /Page leaf is always a /Pages node,
     /// so the returned view exposes the full pages API (count, each, add_page, delete_page…).
-    [[nodiscard]] std::optional<class pages> parent();
+    [[nodiscard]] pages parent();
 
     /// Returns the page's /Contents entry.
     ///
