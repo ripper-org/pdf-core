@@ -62,7 +62,7 @@ page_contents page::content()
     };
 
     if (const auto* ref = contents->as_indirect_reference())
-        return page_contents{{resolve(*ref)}, false};
+        return page_contents{{resolve(*ref)}};
 
     const auto* array = contents->as_array();
     if (array == nullptr)
@@ -81,6 +81,6 @@ page_contents page::content()
         streams.push_back(resolve(*ref));
     }
 
-    return page_contents{std::move(streams), true};
+    return page_contents{std::move(streams)};
 }
 } // namespace ripper::pdf::core
