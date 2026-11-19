@@ -2,7 +2,5 @@
 
 namespace ripper::pdf::core
 {
-    canvas::canvas(stream_object& stream) noexcept
-        : stream_(stream)
-    {}
-}
+canvas::canvas(stream_object& stream) noexcept : stream_(stream) {}
+} // namespace ripper::pdf::core

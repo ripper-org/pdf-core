@@ -1,7 +1,10 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/catalog.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/header.hpp"
+#include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/revision_manager.hpp"
 
 #include <memory>
@@ -48,7 +51,7 @@ public:
     ///
     /// @throws parse_exception if the trailer /Root is missing or the resolved object
     ///         is not a valid catalog dictionary.
-    [[nodiscard]] static class catalog parse_catalog(document& doc);
+    [[nodiscard]] static catalog parse_catalog(document& doc);
 
     /// Allocate a new catalog into the xref and set the trailer /Root.
     ///
@@ -56,7 +59,38 @@ public:
     /// commits it to the xref, and wires the trailer /Root to point to it.
     ///
     /// @throws logic_exception if the xref or trailer operations fail.
-    [[nodiscard]] static class catalog create_catalog(document& doc);
+    [[nodiscard]] static catalog create_catalog(document& doc);
+
+    /// Allocate an empty content stream and attach it to a page's /Contents.
+    ///
+    /// Rebinds `page` to the active revision (so the modification is captured by
+    /// an incremental save), allocates a new content stream with `/Length 0` in
+    /// the xref, and sets the page's /Contents to a single-element array holding
+    /// that stream's reference.
+    ///
+    /// Any existing /Contents is replaced; streams referenced only by the old
+    /// value become unreferenced and are not removed from the xref.
+    ///
+    /// @return A view over the newly written /Contents entry.
+    ///
+    /// @throws logic_exception if the page object is not a dictionary or the
+    ///         xref operations fail.
+    [[nodiscard]] static page_contents create_page_contents(document& doc, page& page);
+
+    /// Validate a page's /Contents entry and wrap it into a view.
+    ///
+    /// Accepts null, a single indirect stream reference, or an array of indirect
+    /// stream references (ISO 32000-1 §7.7.3.3). Every referenced object is
+    /// resolved to confirm it is a stream.
+    ///
+    /// @param doc      document owning the references inside `contents`.
+    /// @param contents the /Contents value, as stored in the page dictionary.
+    ///
+    /// @return A non-owning view; `contents` must outlive it.
+    ///
+    /// @throws logic_exception if /Contents has an unsupported shape, a
+    ///         reference cannot be resolved, or it does not point to a stream.
+    [[nodiscard]] static page_contents parse_page_contents(document& doc, object& contents);
 
     /// Parse the revision history from file.
     ///

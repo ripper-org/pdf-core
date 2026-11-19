@@ -152,7 +152,7 @@ class page pages::add_page()
     auto page_obj = std::make_unique<indirect_object>(object_identity{&doc, page_ref},
                                                       object{std::move(page_dict)});
 
-    auto* raw_page = xref.commit(page_ref, std::move(page_obj));
+    auto* raw_page = xref.commit(std::move(page_obj));
     if (raw_page == nullptr)
         throw logic_exception{"Failed to commit page to cross-reference table"};
 

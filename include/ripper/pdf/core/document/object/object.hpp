@@ -155,6 +155,8 @@ private:
 class stream_object
 {
 public:
+    stream_object() noexcept = default;
+
     /// Construct a stream with the given content dictionary and byte stream.
     explicit stream_object(class dictionary_object dict, class stream stream) noexcept;
 

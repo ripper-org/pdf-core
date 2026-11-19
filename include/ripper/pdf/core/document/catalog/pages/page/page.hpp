@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
@@ -30,5 +31,7 @@ public:
     /// @throws logic_exception if /Contents is malformed or a referenced object
     ///         is not a stream.
     [[nodiscard]] page_contents content();
+
+    [[nodiscard]] canvas canvas(canvas_mode mode = canvas_mode::append);
 };
 } // namespace ripper::pdf::core

@@ -15,6 +15,8 @@ namespace ripper::pdf::core
 class stream
 {
 public:
+    stream() noexcept = default;
+
     explicit stream(std::vector<std::byte> data) noexcept;
 
     /// Returns the stream bytes.
