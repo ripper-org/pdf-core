@@ -81,31 +81,15 @@ public:
     /// the highest object number present. Creates a pending entry via
     /// `add_entry()` and returns the assigned indirect reference.
     /// The entry must be committed via `commit()` before it is usable.
-    ///
-    /// Use `allocate()` for the simpler single-step case.
     [[nodiscard]] indirect_reference reserve() override;
 
-    /// Commit a constructed indirect object to a previously reserved entry in this section.
+    /// Commit `object` into the entry for its identity reference within this section.
     ///
-    /// Looks up the entry for `ref` within this section, transfers ownership of `object`
-    /// into it, and marks it as resolved. Returns a raw non-owning pointer to the committed
-    /// indirect object.
-    ///
-    /// Returns `nullptr` if `ref` is not found in this section, or if the entry was not
-    /// in a reserved (new and unresolved) state.
+    /// Transfers ownership of `object` and marks the entry as resolved. Returns a
+    /// non-owning pointer to the committed object, or `nullptr` if the reference is
+    /// not found here or the entry was not in a reserved state.
     [[nodiscard]] class indirect_object*
-    commit(const indirect_reference& ref,
-           std::unique_ptr<class indirect_object> object) noexcept override;
-
-    /// Allocate and immediately commit a new in-memory indirect object within this section.
-    ///
-    /// Combines `reserve()` and `commit()` into a single step. Prefers recycling
-    /// a free slot from this section's free list (PDF §7.5.4); only when no free
-    /// slot exists does it assign one greater than the highest object number
-    /// present. Creates and resolves the entry in one operation, and returns the
-    /// assigned indirect reference.
-    [[nodiscard]] indirect_reference
-    allocate(std::unique_ptr<class indirect_object> object) override;
+    commit(std::unique_ptr<class indirect_object> object) noexcept override;
 
     /// Return a flat non-owning pointer map of all entries across all subsections.
     ///

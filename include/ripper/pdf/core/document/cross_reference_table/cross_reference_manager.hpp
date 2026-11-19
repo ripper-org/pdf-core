@@ -104,31 +104,15 @@ public:
     /// number across all revisions. Creates a pending entry in the active
     /// revision's section, and returns the assigned indirect reference.
     /// The entry must be committed via `commit()` before it is usable.
-    ///
-    /// Use `allocate()` for the simpler single-step case.
     [[nodiscard]] indirect_reference reserve() override;
 
-    /// Commit a constructed indirect object to a previously reserved reference.
+    /// Commit `object` into the entry for its identity reference across all revisions.
     ///
-    /// Locates the entry for `ref` across all revisions (scanning newest to oldest),
-    /// transfers ownership of `object` into it, and marks it as resolved. Returns a
-    /// raw non-owning pointer to the committed indirect object.
-    ///
-    /// Returns `nullptr` if `ref` is not found in any revision, or if the entry was not
-    /// in a reserved (new and unresolved) state.
+    /// Locates the entry (newest revision first), transfers ownership of `object`, and
+    /// marks it as resolved. Returns a non-owning pointer to the committed object, or
+    /// `nullptr` if the reference is unknown or the entry was not in a reserved state.
     [[nodiscard]] class indirect_object*
-    commit(const indirect_reference& ref,
-           std::unique_ptr<class indirect_object> object) noexcept override;
-
-    /// Allocate and immediately commit a new in-memory indirect object.
-    ///
-    /// Combines `reserve()` and `commit()` into a single step. Prefers recycling
-    /// a free slot from the active revision's free list (PDF §7.5.4); when no
-    /// free slot exists it computes the next available object number across all
-    /// revisions. Adds the resolved entry to the active revision's section, and
-    /// returns the assigned indirect reference.
-    [[nodiscard]] indirect_reference
-    allocate(std::unique_ptr<class indirect_object> object) override;
+    commit(std::unique_ptr<class indirect_object> object) noexcept override;
 
     /// Mark the object referenced by `ref` as deleted (PDF 32000-1 §7.5.4).
     ///

@@ -169,15 +169,20 @@ TEST_CASE("cross_reference_manager recycles freed slots", "[xref][manager][free]
     REQUIRE(pending->reference().generation() == 1);
 
     document doc{nullptr, nullptr};
-    const auto alloc_ref = xref.allocate(std::make_unique<indirect_object>(
-        object_identity{&doc, indirect_reference{5, 0}}, object{dictionary_object{}}));
-    REQUIRE(alloc_ref.object_number() == 5);
-    REQUIRE(alloc_ref.generation() == 1);
+    const auto second_ref = xref.reserve();
+    REQUIRE(second_ref.object_number() == 5);
+    REQUIRE(second_ref.generation() == 1);
 
-    auto* allocated = xref.find(5);
-    REQUIRE(allocated != nullptr);
-    REQUIRE(allocated->in_use());
-    REQUIRE(allocated->reference().generation() == 1);
+    auto* committed = xref.commit(std::make_unique<indirect_object>(
+        object_identity{&doc, second_ref}, object{dictionary_object{}}));
+    REQUIRE(committed != nullptr);
+    REQUIRE(committed->identity().reference() == second_ref);
+
+    auto* resolved = xref.find(5);
+    REQUIRE(resolved != nullptr);
+    REQUIRE(resolved->in_use());
+    REQUIRE(resolved->reference().generation() == 1);
+    REQUIRE(resolved->is_resolved());
 }
 
 TEST_CASE("cross_reference_manager records deletion in active section", "[xref][manager][free]")

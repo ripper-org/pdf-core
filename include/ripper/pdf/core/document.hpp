@@ -228,7 +228,8 @@ public:
     /// After calling this method, existing objects can be cloned into the new
     /// revision using `resolve_object_to_active_revision()` or by calling
     /// `rebind_to_active_revision()` on any instance of `object_view`. New
-    /// objects can be added via `reserve()` / `allocate()` on the active section.
+    /// objects can be added by calling `reserve()` on the active section, then
+    /// constructing the object with the returned reference and `commit()`-ing it.
     ///
     /// Convenience wrappers (e.g. `pages::add_page()`) automatically rebind
     /// themselves to the active revision, so most users only need to call

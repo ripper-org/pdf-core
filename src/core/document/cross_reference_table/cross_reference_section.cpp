@@ -94,10 +94,12 @@ indirect_reference cross_reference_section::reserve()
 }
 
 class indirect_object*
-cross_reference_section::commit(const indirect_reference& ref,
-                                std::unique_ptr<class indirect_object> object) noexcept
+cross_reference_section::commit(std::unique_ptr<class indirect_object> object) noexcept
 {
-    auto* entry = find(ref);
+    if (!object)
+        return nullptr;
+
+    auto* entry = find(object->identity().reference());
     if (entry == nullptr)
         return nullptr;
 
@@ -105,23 +107,6 @@ cross_reference_section::commit(const indirect_reference& ref,
         return nullptr;
 
     return entry->resolve(std::move(object));
-}
-
-indirect_reference cross_reference_section::allocate(std::unique_ptr<class indirect_object> object)
-{
-    if (auto slot = take_free_slot())
-    {
-        add_entry(cross_reference_entry{*slot, std::move(object)});
-        return *slot;
-    }
-
-    const std::uint32_t number = next_object_number();
-
-    indirect_reference ref{number, 0};
-
-    add_entry(cross_reference_entry{ref, std::move(object)});
-
-    return ref;
 }
 
 std::optional<indirect_reference> cross_reference_section::take_free_slot() noexcept

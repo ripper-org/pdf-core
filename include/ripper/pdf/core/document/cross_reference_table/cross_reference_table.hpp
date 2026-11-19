@@ -19,9 +19,9 @@ class indirect_object;
 ///
 /// ## Object lifecycle
 ///
-/// New indirect objects can be introduced via `allocate()` (single-step), or via the
-/// `reserve()` / `commit()` pair when the object's constructor requires a known
-/// `indirect_reference` before the entry can exist.
+/// New indirect objects are introduced in two steps: `reserve()` a slot to obtain the
+/// `indirect_reference`, construct the object with that reference, then `commit()` it.
+/// Reserving first guarantees the object knows its own identity during construction.
 ///
 /// ## Address stability
 ///
@@ -120,33 +120,21 @@ public:
     /// Creates a pending entry with no indirect object and no file offset. The returned
     /// `indirect_reference` can be passed to the indirect object's constructor, then the
     /// constructed object must be submitted via `commit()` before the entry is usable.
-    ///
-    /// Use this two-step pair when the indirect object requires its own reference during
-    /// construction. Use `allocate()` for the simpler single-step case.
     [[nodiscard]] virtual indirect_reference reserve() = 0;
 
-    /// Commit a constructed indirect object to a previously reserved reference.
+    /// Commit a constructed indirect object using the reference carried by its identity.
     ///
-    /// Transfers ownership of `object` into the entry identified by `ref` and marks the
-    /// entry as resolved. Returns a raw non-owning pointer to the committed indirect object.
+    /// Transfers ownership of `object` into the entry identified by
+    /// `object->identity().reference()` and marks the entry as resolved. Returns a raw
+    /// non-owning pointer to the committed indirect object. The identity reference must
+    /// match a previously reserved entry.
     ///
     /// Returns `nullptr` if:
-    ///   - `ref` does not correspond to any entry in this table, or
+    ///   - `object` is null,
+    ///   - its reference does not correspond to any entry in this table, or
     ///   - the entry was not previously reserved (i.e. it is not new and unresolved).
     [[nodiscard]] virtual class indirect_object*
-    commit(const indirect_reference& ref,
-           std::unique_ptr<class indirect_object> object) noexcept = 0;
-
-    /// Allocate and immediately commit a new in-memory indirect object.
-    ///
-    /// Combines `reserve()` and `commit()` into a single step. The next available object
-    /// number is assigned, the entry is created and resolved in one operation, and the
-    /// assigned indirect reference is returned.
-    ///
-    /// Use this when the indirect object does not need to know its own reference during
-    /// construction. Use `reserve()` / `commit()` for the two-step case.
-    [[nodiscard]] virtual indirect_reference
-    allocate(std::unique_ptr<class indirect_object> object) = 0;
+    commit(std::unique_ptr<class indirect_object> object) noexcept = 0;
 
     /// Return a flat non-owning pointer map of all entries.
     ///
@@ -172,7 +160,7 @@ public:
     /// Returns 1 if the table contains no entries (object number 0 is reserved for the
     /// free-list head and is not a valid allocation target).
     ///
-    /// Used internally by `reserve()` and `allocate()`, but exposed for introspection.
+    /// Used internally by `reserve()`, but exposed for introspection.
     [[nodiscard]] virtual std::uint32_t next_object_number() const noexcept = 0;
 };
 } // namespace ripper::pdf::core
