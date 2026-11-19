@@ -65,32 +65,28 @@ public:
     ///
     /// Rebinds `page` to the active revision (so the modification is captured by
     /// an incremental save), allocates a new content stream with `/Length 0` in
-    /// the xref, and sets the page's /Contents to a single-element array holding
-    /// that stream's reference.
+    /// the xref, and sets the page's /Contents to that stream's reference.
     ///
     /// Any existing /Contents is replaced; streams referenced only by the old
     /// value become unreferenced and are not removed from the xref.
     ///
-    /// @return A view over the newly written /Contents entry.
+    /// @return A view over the page's /Contents entry.
     ///
     /// @throws logic_exception if the page object is not a dictionary or the
     ///         xref operations fail.
     [[nodiscard]] static page_contents create_page_contents(document& doc, page& page);
 
-    /// Validate a page's /Contents entry and wrap it into a view.
+    /// Wrap a page's /Contents entry into a lazily validated view.
     ///
-    /// Accepts null, a single indirect stream reference, or an array of indirect
-    /// stream references (ISO 32000-1 §7.7.3.3). Every referenced object is
-    /// resolved to confirm it is a stream.
+    /// Does not resolve anything: the returned view validates and resolves
+    /// /Contents on use (`size()`, `at()`, `streams()`), so merely accessing a
+    /// page's contents never loads the referenced streams.
     ///
-    /// @param doc      document owning the references inside `contents`.
-    /// @param contents the /Contents value, as stored in the page dictionary.
+    /// Accepts absent, null, a single indirect stream reference, or an array of
+    /// indirect stream references (ISO 32000-1 §7.7.3.3).
     ///
-    /// @return A non-owning view; `contents` must outlive it.
-    ///
-    /// @throws logic_exception if /Contents has an unsupported shape, a
-    ///         reference cannot be resolved, or it does not point to a stream.
-    [[nodiscard]] static page_contents parse_page_contents(document& doc, object& contents);
+    /// @return A non-owning view over `page`; the page must outlive it.
+    [[nodiscard]] static page_contents parse_page_contents(page& page);
 
     /// Parse the revision history from file.
     ///

@@ -6,7 +6,6 @@
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/document/header.hpp"
-#include "ripper/pdf/core/document/object/array_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/revision.hpp"
@@ -73,74 +72,38 @@ page_contents object_manager::create_page_contents(document& doc, page& page)
     // any reference into its content: rebinding invalidates earlier pointers.
     page.rebind_to_active_revision();
 
-    auto* page_dict = page.obj().content().as_dictionary();
-    if (page_dict == nullptr)
+    if (page.obj().content().as_dictionary() == nullptr)
         throw logic_exception{"Page object is not a dictionary"};
 
     auto& xref = doc.cross_reference_table();
 
     // An empty stream still needs /Length in its dictionary: the serializer
     // writes the dictionary verbatim.
-    stream_object content_stream;
-    content_stream.sync_length();
+    stream_object stream_obj;
+    stream_obj.sync_length();
 
     auto content_stream_ref = xref.reserve();
     auto content_stream_obj = std::make_unique<indirect_object>(
-        object_identity{&doc, content_stream_ref}, object{std::move(content_stream)});
+        object_identity{&doc, content_stream_ref}, object{std::move(stream_obj)});
 
     auto* raw_content_stream = xref.commit(std::move(content_stream_obj));
     if (raw_content_stream == nullptr)
         throw logic_exception{"Failed to commit content stream to cross-reference table"};
 
-    array_object contents;
-    contents.push_back(object{raw_content_stream->identity().reference()});
+    page_contents contents{page.obj()};
 
-    page_dict->set("Contents", object{std::move(contents)});
+    // "Create" replaces any existing /Contents rather than extending it.
+    contents.clear();
+    contents.append(content_stream{*raw_content_stream});
 
-    auto* contents_obj = page_dict->get("Contents");
-    if (contents_obj == nullptr)
-        throw logic_exception{"Failed to set /Contents on the page dictionary"};
-
-    return page_contents{doc, *contents_obj};
+    return contents;
 }
 
-page_contents object_manager::parse_page_contents(document& doc, object& contents)
+page_contents object_manager::parse_page_contents(page& page)
 {
-    if (contents.is_null())
-        return page_contents{doc, contents};
-
-    const auto _validate = [&doc](const indirect_reference& ref)
-    {
-        auto* resolved = doc.resolve_object(ref);
-        if (resolved == nullptr)
-            throw logic_exception{"Page /Contents reference cannot be resolved"};
-
-        if (resolved->content().as_stream() == nullptr)
-            throw logic_exception{"Page /Contents reference does not point to a stream"};
-    };
-
-    if (const auto* ref = contents.as_indirect_reference())
-    {
-        _validate(*ref);
-        return page_contents{doc, contents};
-    }
-
-    const auto* array = contents.as_array();
-    if (array == nullptr)
-        throw logic_exception{
-            "Page /Contents must be a stream reference or an array of stream references"};
-
-    for (const auto& item : *array)
-    {
-        const auto* ref = item.as_indirect_reference();
-        if (ref == nullptr)
-            throw logic_exception{
-                "Page /Contents array entries must be indirect stream references"};
-
-        _validate(*ref);
-    }
-
-    return page_contents{doc, contents};
+    // Nothing is resolved here: /Contents is validated lazily by the view, so
+    // reading a page's contents does not load every referenced stream.
+    return page_contents{page.obj()};
 }
 
 std::unique_ptr<revision_manager> object_manager::parse_revision_history(const document& doc)

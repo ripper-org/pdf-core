@@ -97,7 +97,7 @@ TEST_CASE("page exposes a single /Contents stream", "[content_stream][page]")
     auto contents = candidate->content();
     REQUIRE_FALSE(contents.is_array());
     REQUIRE(contents.size() == 1);
-    REQUIRE(contents[0].stream() != nullptr);
+    REQUIRE(contents.at(0).stream() != nullptr);
 }
 
 TEST_CASE("page exposes an array of /Contents streams", "[content_stream][page]")
@@ -113,7 +113,7 @@ TEST_CASE("page exposes an array of /Contents streams", "[content_stream][page]"
     REQUIRE(contents.size() == 2);
     REQUIRE_FALSE(contents.empty());
 
-    for (const auto& stream : contents)
+    for (const auto& stream : contents.streams())
     {
         REQUIRE(stream.stream() != nullptr);
     }
@@ -132,7 +132,7 @@ TEST_CASE("page distinguishes a one-element /Contents array", "[content_stream][
     REQUIRE(contents.size() == 1);
 }
 
-TEST_CASE("page without /Contents has empty contents", "[content_stream][page]")
+TEST_CASE("page without /Contents allocates an empty stream on access", "[content_stream][page]")
 {
     auto data = make_page_pdf("", {});
     document doc{std::make_unique<ripper::io::core::memory_reader>(data), nullptr};
@@ -141,9 +141,10 @@ TEST_CASE("page without /Contents has empty contents", "[content_stream][page]")
     REQUIRE(candidate.has_value());
 
     auto contents = candidate->content();
-    REQUIRE(contents.empty());
-    REQUIRE(contents.size() == 0);
+    REQUIRE_FALSE(contents.empty());
+    REQUIRE(contents.size() == 1);
     REQUIRE_FALSE(contents.is_array());
+    REQUIRE(contents.at(0).stream() != nullptr);
 }
 
 TEST_CASE("page with null /Contents has empty contents", "[content_stream][page]")
@@ -168,7 +169,8 @@ TEST_CASE("page rejects a /Contents reference that is not a stream", "[content_s
     auto candidate = doc.catalog().pages().page(0);
     REQUIRE(candidate.has_value());
 
-    REQUIRE_THROWS_AS(candidate->content(), logic_exception);
+    auto contents = candidate->content();
+    REQUIRE_THROWS_AS(contents.streams(), logic_exception);
 }
 
 TEST_CASE("page rejects an unresolvable /Contents reference", "[content_stream][page]")
@@ -179,7 +181,8 @@ TEST_CASE("page rejects an unresolvable /Contents reference", "[content_stream][
     auto candidate = doc.catalog().pages().page(0);
     REQUIRE(candidate.has_value());
 
-    REQUIRE_THROWS_AS(candidate->content(), parse_exception);
+    auto contents = candidate->content();
+    REQUIRE_THROWS_AS(contents.streams(), parse_exception);
 }
 
 TEST_CASE("page rejects a non-reference /Contents array entry", "[content_stream][page]")
@@ -190,6 +193,7 @@ TEST_CASE("page rejects a non-reference /Contents array entry", "[content_stream
     auto candidate = doc.catalog().pages().page(0);
     REQUIRE(candidate.has_value());
 
-    REQUIRE_THROWS_AS(candidate->content(), logic_exception);
+    auto contents = candidate->content();
+    REQUIRE_THROWS_AS(contents.streams(), logic_exception);
 }
 } // namespace ripper::pdf::core
