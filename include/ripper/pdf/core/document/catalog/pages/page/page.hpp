@@ -25,13 +25,22 @@ public:
     ///
     /// /Contents is either a single content stream or an array of content
     /// streams (ISO 32000-1 §7.7.3.3). Both forms are exposed through the same
-    /// view, with is_array() reporting which form the file used. Returns an
-    /// empty view when /Contents is absent or null.
+    /// view, with is_array() reporting which form the file used. A page without
+    /// a /Contents entry gets an empty stream allocated on first access; a null
+    /// /Contents is reported as empty.
     ///
-    /// @throws logic_exception if /Contents is malformed or a referenced object
-    ///         is not a stream.
+    /// @throws logic_exception if the page is not a dictionary or the new
+    ///         content stream cannot be committed.
     [[nodiscard]] page_contents content();
 
+    /// Rebinds the page and returns a canvas over a new content stream.
+    ///
+    /// `canvas_mode::append` adds the stream at the end of /Contents,
+    /// `prepend` at the beginning, and `replace` discards the existing /Contents
+    /// and installs the new stream as the only one.
+    ///
+    /// @throws logic_exception if the page is not a dictionary or the stream
+    ///         cannot be committed.
     [[nodiscard]] canvas canvas(canvas_mode mode = canvas_mode::append);
 };
 } // namespace ripper::pdf::core
