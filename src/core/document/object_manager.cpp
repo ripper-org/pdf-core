@@ -69,7 +69,7 @@ catalog object_manager::create_catalog(document& doc)
 page_contents object_manager::create_page_contents(document& doc, page& page)
 {
     // The page may still be bound to an older revision, so rebind before taking
-    // any reference into its content: rebinding invalidates earlier pointers.
+    // any reference into its content. Rebinding invalidates earlier pointers.
     page.rebind_to_active_revision();
 
     if (page.obj().content().as_dictionary() == nullptr)
@@ -101,8 +101,7 @@ page_contents object_manager::create_page_contents(document& doc, page& page)
 
 page_contents object_manager::parse_page_contents(page& page)
 {
-    // Nothing is resolved here: /Contents is validated lazily by the view, so
-    // reading a page's contents does not load every referenced stream.
+    // /Contents is validated lazily by the view, so this is just here for symmetry.
     return page_contents{page.obj()};
 }
 
@@ -142,6 +141,8 @@ header object_manager::parse_header(const document& doc)
 
 header object_manager::create_header()
 {
+    // TODO: create some mechanism to determine the correct version based on
+    // current file features (or just default to latest).
     return ripper::pdf::core::header{"1.4"};
 }
 
