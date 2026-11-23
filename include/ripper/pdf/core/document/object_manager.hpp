@@ -88,6 +88,15 @@ public:
     /// @return A non-owning view over `page`; the page must outlive it.
     [[nodiscard]] static page_contents parse_page_contents(page& page);
 
+    /// Allocate a new, empty content stream in the xref.
+    ///
+    /// The stream gets `/Length 0` and is committed to the active revision but
+    /// is not referenced by any page yet; attach it with `page_contents::append`,
+    /// `insert`, or `replace`.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static content_stream create_content_stream(document& doc);
+
     /// Parse the revision history from file.
     ///
     /// Delegates to the parser to reconstruct the xref and trailer from the input

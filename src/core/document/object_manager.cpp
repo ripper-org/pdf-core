@@ -75,6 +75,25 @@ page_contents object_manager::create_page_contents(document& doc, page& page)
     if (page.obj().content().as_dictionary() == nullptr)
         throw logic_exception{"Page object is not a dictionary"};
 
+    auto stream = create_content_stream(doc);
+
+    page_contents contents{page.obj()};
+
+    // "Create" replaces any existing /Contents rather than extending it.
+    contents.clear();
+    contents.append(stream);
+
+    return contents;
+}
+
+page_contents object_manager::parse_page_contents(page& page)
+{
+    // /Contents is validated lazily by the view, so this is just here for symmetry.
+    return page_contents{page.obj()};
+}
+
+content_stream object_manager::create_content_stream(document& doc)
+{
     auto& xref = doc.cross_reference_table();
 
     // An empty stream still needs /Length in its dictionary: the serializer
@@ -90,19 +109,7 @@ page_contents object_manager::create_page_contents(document& doc, page& page)
     if (raw_content_stream == nullptr)
         throw logic_exception{"Failed to commit content stream to cross-reference table"};
 
-    page_contents contents{page.obj()};
-
-    // "Create" replaces any existing /Contents rather than extending it.
-    contents.clear();
-    contents.append(content_stream{*raw_content_stream});
-
-    return contents;
-}
-
-page_contents object_manager::parse_page_contents(page& page)
-{
-    // /Contents is validated lazily by the view, so this is just here for symmetry.
-    return page_contents{page.obj()};
+    return content_stream{*raw_content_stream};
 }
 
 std::unique_ptr<revision_manager> object_manager::parse_revision_history(const document& doc)

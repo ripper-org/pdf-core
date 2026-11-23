@@ -10,7 +10,6 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <string>
-#include <utility>
 
 namespace ripper::pdf::core
 {
@@ -61,16 +60,33 @@ canvas page::canvas(canvas_mode mode)
 {
     rebind_to_active_revision();
 
-    page_contents contents = content();
+    auto& doc = obj().identity().owner();
 
-    auto streams = contents.streams();
-    if (streams.empty())
-        throw logic_exception{"Page has no content stream to draw on"};
+    page_contents contents{obj()};
 
-    auto* stream = streams.back().stream();
-    if (stream == nullptr)
-        throw logic_exception{"Page /Contents does not reference a stream"};
+    // Allocate before touching /Contents so a failed commit leaves the page intact.
+    auto stream = object_manager::create_content_stream(doc);
 
-    return ripper::pdf::core::canvas{*stream};
+    switch (mode)
+    {
+        case canvas_mode::append:
+            contents.append(stream);
+            break;
+
+        case canvas_mode::prepend:
+            contents.insert(0, stream);
+            break;
+
+        case canvas_mode::replace:
+            contents.clear();
+            contents.append(stream);
+            break;
+    }
+
+    auto* stream_obj = stream.stream();
+    if (stream_obj == nullptr)
+        throw logic_exception{"Newly created content stream is not a stream"};
+
+    return ripper::pdf::core::canvas{*stream_obj};
 }
 } // namespace ripper::pdf::core
