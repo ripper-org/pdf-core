@@ -1,10 +1,16 @@
 #pragma once
 
+#include "ripper/pdf/core/document/canvas/path.hpp"
+#include "ripper/pdf/core/document/canvas/style.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/content_item.hpp"
 #include "ripper/pdf/core/document/geometry/matrix.hpp"
+#include "ripper/pdf/core/document/geometry/point.hpp"
+#include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 
 #include <cstddef>
+#include <initializer_list>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -31,47 +37,100 @@ enum class canvas_mode
 ///
 /// Lifetime: the `stream_object` must outlive the canvas, and a canvas must not
 /// outlive a `rebind_to_active_revision()` on the object that owns the stream.
+/// The canvas is a view with mutable state (the `q` depth), so copying is
+/// disabled: two views over the same stream would diverge.
 ///
-/// Current scope: graphics state and coordinate transformations only. Painting,
-/// text, XObjects, marked content, and resource registration are added on top
+/// Every mutating method returns `*this`, so calls chain:
+///
+/// ```cpp
+/// painter.save().translate(72.0, 720.0).path().add_rect(box).fill().restore();
+/// ```
+///
+/// Current scope: graphics state, coordinate transformations, and paths.
+/// Text, XObjects, marked content, and resource registration are added on top
 /// of `op()` as their own types.
 class canvas
 {
 public:
     explicit canvas(stream_object& stream) noexcept;
 
+    canvas(const canvas&) = delete;
+    canvas& operator=(const canvas&) = delete;
+    canvas(canvas&&) = delete;
+    canvas& operator=(canvas&&) = delete;
+    ~canvas() = default;
+
+    /// Returns a fluent view for building and painting a path (§8.5.2).
+    [[nodiscard]] path path() noexcept;
+
     /// Emit `name` with `operands`, in operand-then-operator order.
     ///
     /// @throws parse_exception if an operand is a non-finite real; nothing is
     ///         written in that case.
-    void op(std::string_view name, std::vector<object> operands = {});
+    canvas& op(std::string_view name, std::vector<object> operands = {});
 
     /// Emit an already-built instruction.
-    void op(const content_operation& operation);
+    canvas& op(const content_operation& operation);
 
     /// Push a copy of the graphics state (`q`).
-    void save();
+    canvas& save();
 
     /// Pop the graphics state (`Q`).
     ///
     /// @throws logic_exception if called without a matching `save()`, which
     ///         would make the stream unbalanced.
-    void restore();
+    canvas& restore();
 
     /// Concatenate `transformation` onto the CTM (`cm`).
-    void concat(const geometry::matrix& transformation);
+    canvas& concat(const geometry::matrix& transformation);
 
     /// Translate the CTM by `(tx, ty)` (`cm`).
-    void translate(double tx, double ty);
+    canvas& translate(double tx, double ty);
 
     /// Scale the CTM by `(sx, sy)` (`cm`).
-    void scale(double sx, double sy);
+    canvas& scale(double sx, double sy);
 
     /// Rotate the CTM counter-clockwise by `degrees` (`cm`).
-    void rotate(double degrees);
+    canvas& rotate(double degrees);
 
     /// Skew the CTM by `x_degrees`/`y_degrees` (`cm`).
-    void skew(double x_degrees, double y_degrees);
+    canvas& skew(double x_degrees, double y_degrees);
+
+    /// Set the line width (`w`).
+    ///
+    /// @throws logic_exception if `width` is negative.
+    canvas& set_line_width(double width);
+
+    /// Set the line cap style (`J`).
+    canvas& set_line_cap(line_cap cap);
+
+    /// Set the line join style (`j`).
+    canvas& set_line_join(line_join join);
+
+    /// Set the miter limit (`M`); must be at least 1.0.
+    ///
+    /// @throws logic_exception if `limit` is below 1.0.
+    canvas& set_miter_limit(double limit);
+
+    /// Set the dash pattern and phase (`d`).
+    ///
+    /// An empty pattern is a solid line. Entries must be non-negative and at
+    /// least one entry must be non-zero.
+    ///
+    /// @throws logic_exception if the pattern is invalid.
+    canvas& set_dash_pattern(std::span<const double> pattern, double phase = 0.0);
+
+    /// Convenience overload for a brace-enclosed dash pattern.
+    canvas& set_dash_pattern(std::initializer_list<double> pattern, double phase = 0.0);
+
+    /// Stroke a single segment from `from` to `to` (`m` `l` `S`).
+    canvas& stroke_line(geometry::point from, geometry::point to);
+
+    /// Stroke a rectangle (`re` `S`).
+    canvas& stroke_rect(const geometry::rect& rect);
+
+    /// Fill a rectangle (`re` `f`/`f*`).
+    canvas& fill_rect(const geometry::rect& rect, fill_rule rule = fill_rule::nonzero);
 
     /// Returns the underlying stream object.
     [[nodiscard]] stream_object& stream() noexcept;
