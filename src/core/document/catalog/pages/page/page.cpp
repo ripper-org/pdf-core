@@ -34,12 +34,15 @@ page::page(indirect_object& obj) noexcept : object_view(obj) {}
 geometry::rect page::media_box()
 {
     const auto letter = ripper::pdf::core::media_box(page_size::letter);
-    const auto* dict = obj().content().as_dictionary();
+    auto& doc = obj().identity().owner();
 
-    if (const auto* value = obj().identity().owner().resolve_object_deep(
-            dict != nullptr ? dict->get("MediaBox") : nullptr);
+    const auto* dict = obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object view object is not a dictionary"};
+
+    if (const auto* value = doc.resolve_object_deep(dict->get("MediaBox"));
         value != nullptr && !value->is_null())
-        return geometry::rect::from(obj().identity().owner(), *value).value_or(letter);
+        return geometry::rect::from(doc, *value).value_or(letter);
 
     if (auto up = parent_pages(*this))
         return up->media_box().value_or(letter);
@@ -49,12 +52,15 @@ geometry::rect page::media_box()
 
 geometry::rect page::crop_box()
 {
-    const auto* dict = obj().content().as_dictionary();
+    auto& doc = obj().identity().owner();
 
-    if (const auto* value = obj().identity().owner().resolve_object_deep(
-            dict != nullptr ? dict->get("CropBox") : nullptr);
+    const auto* dict = obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object view object is not a dictionary"};
+
+    if (const auto* value = doc.resolve_object_deep(dict->get("CropBox"));
         value != nullptr && !value->is_null())
-        return geometry::rect::from(obj().identity().owner(), *value).value_or(media_box());
+        return geometry::rect::from(doc, *value).value_or(media_box());
 
     if (auto up = parent_pages(*this))
         return up->crop_box().value_or(media_box());
@@ -64,10 +70,13 @@ geometry::rect page::crop_box()
 
 page_rotation page::rotation()
 {
-    const auto* dict = obj().content().as_dictionary();
+    auto& doc = obj().identity().owner();
 
-    if (const auto* value = obj().identity().owner().resolve_object_deep(
-            dict != nullptr ? dict->get("Rotate") : nullptr);
+    const auto* dict = obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object view object is not a dictionary"};
+
+    if (const auto* value = doc.resolve_object_deep(dict->get("Rotate"));
         value != nullptr && !value->is_null())
         return page_rotation::from(*value);
 

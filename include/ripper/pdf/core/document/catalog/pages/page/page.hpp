@@ -81,7 +81,8 @@ public:
     /// When no /MediaBox exists anywhere in the chain, US Letter is returned,
     /// matching the Acrobat fallback for malformed files.
     ///
-    /// @throws logic_exception if a /Parent chain is cyclic.
+    /// @throws logic_exception if the page is not a dictionary or a /Parent
+    ///         chain is cyclic.
     [[nodiscard]] geometry::rect media_box();
 
     /// Returns the effective /CropBox of this page, inheriting from ancestors.
@@ -89,7 +90,8 @@ public:
     /// Falls back to `media_box()` when neither this page nor an ancestor
     /// defines a /CropBox (ISO 32000-1 §14.11.2).
     ///
-    /// @throws logic_exception if a /Parent chain is cyclic.
+    /// @throws logic_exception if the page is not a dictionary or a /Parent
+    ///         chain is cyclic.
     [[nodiscard]] geometry::rect crop_box();
 
     /// Returns the effective /Rotate value of this page, inheriting from ancestors.
@@ -97,8 +99,8 @@ public:
     /// The result is normalized to 0, 90, 180 or 270 degrees clockwise. A page
     /// without a /Rotate entry anywhere in the chain reports 0.
     ///
-    /// @throws logic_exception if the value is not a number or not a multiple
-    ///         of 90, or if a /Parent chain is cyclic.
+    /// @throws logic_exception if the page is not a dictionary, the value is not
+    ///         a number or not a multiple of 90, or a /Parent chain is cyclic.
     [[nodiscard]] page_rotation rotation();
 
     /// Returns the displayed width of the page in points.
