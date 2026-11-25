@@ -2,6 +2,7 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 
@@ -28,6 +29,14 @@ TEST_CASE("number_object accepts the minimum int64 real boundary", "[document][o
 {
     const double min_int64 = -9223372036854775808.0;
     REQUIRE(number_object{min_int64}.as_integer() == std::numeric_limits<std::int64_t>::min());
+}
+
+TEST_CASE("number_object normalizes negative zero", "[document][object][number]")
+{
+    const number_object negative_zero{-0.0};
+    REQUIRE_FALSE(std::signbit(negative_zero.as_real()));
+    REQUIRE(negative_zero.as_integer() == 0);
+    REQUIRE(negative_zero == number_object{0.0});
 }
 
 TEST_CASE("number_object still rejects non-finite reals at construction",

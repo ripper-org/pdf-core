@@ -2,7 +2,6 @@
 
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/operator.hpp"
-#include "ripper/pdf/core/document/object/number_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <string_view>
@@ -11,12 +10,6 @@ namespace ripper::pdf::core
 {
 namespace
 {
-[[nodiscard]] object real(double value)
-{
-    // Match the canvas: avoid emitting negative zero for path coordinates.
-    return object{number_object{value == 0.0 ? 0.0 : value}};
-}
-
 [[nodiscard]] std::string_view painting_operator(paint_style style)
 {
     switch (style)
@@ -45,7 +38,7 @@ namespace
 
 path& path::move_to(geometry::point p)
 {
-    canvas_->op(content_operator::m, {real(p.x), real(p.y)});
+    canvas_->op(content_operator::m, {object{p.x}, object{p.y}});
     open_ = true;
     return *this;
 }
@@ -54,7 +47,7 @@ path& path::line_to(geometry::point p)
 {
     ensure_open();
 
-    canvas_->op(content_operator::l, {real(p.x), real(p.y)});
+    canvas_->op(content_operator::l, {object{p.x}, object{p.y}});
     return *this;
 }
 
@@ -62,8 +55,8 @@ path& path::curve_to(geometry::point c1, geometry::point c2, geometry::point end
 {
     ensure_open();
 
-    canvas_->op(content_operator::c,
-                {real(c1.x), real(c1.y), real(c2.x), real(c2.y), real(end.x), real(end.y)});
+    canvas_->op(content_operator::c, {object{c1.x}, object{c1.y}, object{c2.x}, object{c2.y},
+                                      object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -71,7 +64,7 @@ path& path::curve_to_replicated_start(geometry::point c2, geometry::point end)
 {
     ensure_open();
 
-    canvas_->op(content_operator::v, {real(c2.x), real(c2.y), real(end.x), real(end.y)});
+    canvas_->op(content_operator::v, {object{c2.x}, object{c2.y}, object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -79,7 +72,7 @@ path& path::curve_to_replicated_end(geometry::point c1, geometry::point end)
 {
     ensure_open();
 
-    canvas_->op(content_operator::y, {real(c1.x), real(c1.y), real(end.x), real(end.y)});
+    canvas_->op(content_operator::y, {object{c1.x}, object{c1.y}, object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -93,7 +86,8 @@ path& path::close()
 
 path& path::add_rect(const geometry::rect& r)
 {
-    canvas_->op(content_operator::re, {real(r.x), real(r.y), real(r.width), real(r.height)});
+    canvas_->op(content_operator::re,
+                {object{r.x}, object{r.y}, object{r.width}, object{r.height}});
     open_ = true;
     return *this;
 }

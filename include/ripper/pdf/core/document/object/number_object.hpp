@@ -24,8 +24,12 @@ public:
     explicit number_object(std::int64_t v) noexcept : value_(v) {}
 
     /// Construct a real.
+    ///
+    /// Negative zero is normalized to positive zero: the two denote the same
+    /// number, and emitting `-0.0` only adds noise to serialized output (e.g.
+    /// the `-0.0` produced by `matrix::rotated(0)`).
     /// @throws parse_exception if value is NaN or infinite.
-    explicit number_object(double v) : value_(v)
+    explicit number_object(double v) : value_(v == 0.0 ? 0.0 : v)
     {
         if (!std::isfinite(v))
             throw parse_exception{"Non-finite double values (NaN/Inf) are not valid PDF reals"};

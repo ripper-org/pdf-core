@@ -1,7 +1,6 @@
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
 
 #include "ripper/pdf/core/document/catalog/pages/page/content/operator.hpp"
-#include "ripper/pdf/core/document/object/number_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "ripper/pdf/core/serializer/content/content_stream_serializer.hpp"
 
@@ -11,15 +10,6 @@
 
 namespace ripper::pdf::core
 {
-namespace
-{
-[[nodiscard]] object real(double value)
-{
-    // Normalize negative zero: `-0.0` is a valid real but reads as noise in
-    // golden output (e.g. the `-0.0` produced by `matrix::rotated(0)`).
-    return object{number_object{value == 0.0 ? 0.0 : value}};
-}
-} // namespace
 
 canvas::canvas(stream_object& stream) noexcept : stream_{stream} {}
 
@@ -59,8 +49,8 @@ canvas& canvas::restore()
 canvas& canvas::concat(const geometry::matrix& transformation)
 {
     return op(content_operator::cm,
-              {real(transformation.a), real(transformation.b), real(transformation.c),
-               real(transformation.d), real(transformation.e), real(transformation.f)});
+              {object{transformation.a}, object{transformation.b}, object{transformation.c},
+               object{transformation.d}, object{transformation.e}, object{transformation.f}});
 }
 
 canvas& canvas::translate(double tx, double ty)
@@ -88,7 +78,7 @@ canvas& canvas::set_line_width(double width)
     if (width < 0.0)
         throw logic_exception{"Line width must be non-negative"};
 
-    return op(content_operator::w, {real(width)});
+    return op(content_operator::w, {object{width}});
 }
 
 canvas& canvas::set_line_cap(line_cap cap)
@@ -106,7 +96,7 @@ canvas& canvas::set_miter_limit(double limit)
     if (limit < 1.0)
         throw logic_exception{"Miter limit must be at least 1.0"};
 
-    return op(content_operator::M, {real(limit)});
+    return op(content_operator::M, {object{limit}});
 }
 
 canvas& canvas::set_dash_pattern(std::span<const double> pattern, double phase)
@@ -121,13 +111,13 @@ canvas& canvas::set_dash_pattern(std::span<const double> pattern, double phase)
             throw logic_exception{"Dash pattern entries must be non-negative"};
 
         any_positive = any_positive || value > 0.0;
-        entries.push_back(real(value));
+        entries.push_back(object{value});
     }
 
     if (!pattern.empty() && !any_positive)
         throw logic_exception{"Dash pattern must contain at least one non-zero entry"};
 
-    return op(content_operator::d, {object{array_object{std::move(entries)}}, real(phase)});
+    return op(content_operator::d, {object{array_object{std::move(entries)}}, object{phase}});
 }
 
 canvas& canvas::set_dash_pattern(std::initializer_list<double> pattern, double phase)
