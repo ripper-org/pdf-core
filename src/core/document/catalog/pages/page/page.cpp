@@ -7,7 +7,6 @@
 #include "ripper/pdf/core/document/catalog/pages/page_tree_node.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
-#include "ripper/pdf/core/document/object/helpers/resolved_entry.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -35,8 +34,11 @@ page::page(indirect_object& obj) noexcept : object_view(obj) {}
 geometry::rect page::media_box()
 {
     const auto letter = ripper::pdf::core::media_box(page_size::letter);
+    const auto* dict = obj().content().as_dictionary();
 
-    if (const auto* value = resolved_entry(obj(), "MediaBox"))
+    if (const auto* value = obj().identity().owner().resolve_object_deep(
+            dict != nullptr ? dict->get("MediaBox") : nullptr);
+        value != nullptr && !value->is_null())
         return geometry::rect::from(obj().identity().owner(), *value).value_or(letter);
 
     if (auto up = parent_pages(*this))
@@ -47,7 +49,11 @@ geometry::rect page::media_box()
 
 geometry::rect page::crop_box()
 {
-    if (const auto* value = resolved_entry(obj(), "CropBox"))
+    const auto* dict = obj().content().as_dictionary();
+
+    if (const auto* value = obj().identity().owner().resolve_object_deep(
+            dict != nullptr ? dict->get("CropBox") : nullptr);
+        value != nullptr && !value->is_null())
         return geometry::rect::from(obj().identity().owner(), *value).value_or(media_box());
 
     if (auto up = parent_pages(*this))
@@ -58,7 +64,11 @@ geometry::rect page::crop_box()
 
 page_rotation page::rotation()
 {
-    if (const auto* value = resolved_entry(obj(), "Rotate"))
+    const auto* dict = obj().content().as_dictionary();
+
+    if (const auto* value = obj().identity().owner().resolve_object_deep(
+            dict != nullptr ? dict->get("Rotate") : nullptr);
+        value != nullptr && !value->is_null())
         return page_rotation::from(*value);
 
     if (auto up = parent_pages(*this))

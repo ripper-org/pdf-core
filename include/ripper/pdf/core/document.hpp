@@ -207,6 +207,23 @@ public:
     /// @throws logic_exception if the object is not found.
     class indirect_object* resolve_object(indirect_reference ref);
 
+    /// Follow indirect-reference chains starting at `value` until a direct value is reached.
+    ///
+    /// A non-reference `value` is returned unchanged. Each reference is resolved through
+    /// `resolve_object()`, so unresolved targets are lazy-loaded from file.
+    ///
+    /// Performs no null interpretation: a direct or chained /Null is returned as a pointer
+    /// to the null object, which is distinct from `nullptr` (returned only when `value`
+    /// itself is `nullptr`). Callers that treat /Null as an absent value must check
+    /// `is_null()` themselves.
+    ///
+    /// The returned pointer designates the content of an indirect object owned by the
+    /// document, so it remains valid as long as the document is alive.
+    ///
+    /// @throws parse_exception if a referenced object cannot be resolved or the chain
+    ///         revisits a reference (cyclic chain).
+    [[nodiscard]] const object* resolve_object_deep(const object* value);
+
     /// Resolve an indirect object and ensure it exists in the active (newest) xref section.
     ///
     /// If the object is already in the active section, returns a reference to the existing

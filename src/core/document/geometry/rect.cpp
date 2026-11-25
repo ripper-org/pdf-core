@@ -16,18 +16,9 @@ namespace
 [[nodiscard]] std::optional<double> box_number(document& doc, const array_object& box,
                                                std::size_t index)
 {
-    const auto* item = &box.at(index);
+    const auto* item = doc.resolve_object_deep(&box.at(index));
 
-    if (const auto* ref = item->as_indirect_reference())
-    {
-        auto* resolved = doc.resolve_object(*ref);
-        if (resolved == nullptr)
-            return std::nullopt;
-
-        item = &resolved->content();
-    }
-
-    const auto* number = item->as_number();
+    const auto* number = item != nullptr ? item->as_number() : nullptr;
     if (number == nullptr)
         return std::nullopt;
 

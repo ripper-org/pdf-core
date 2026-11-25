@@ -266,6 +266,30 @@ indirect_object* document::resolve_object(indirect_reference ref)
     return entry->resolve(std::make_unique<indirect_object>(std::move(parsed)));
 }
 
+const object* document::resolve_object_deep(const object* value)
+{
+    if (value == nullptr)
+        return nullptr;
+
+    std::unordered_set<indirect_reference> visited;
+    const auto* current = value;
+
+    while (const auto* ref = current->as_indirect_reference())
+    {
+        if (!visited.insert(*ref).second)
+            throw parse_exception{"Cyclic indirect reference chain detected at object " +
+                                  std::to_string(ref->object_number())};
+
+        auto* resolved = resolve_object(*ref);
+        if (resolved == nullptr)
+            return nullptr;
+
+        current = &resolved->content();
+    }
+
+    return current;
+}
+
 indirect_object& document::resolve_object_to_active_revision(indirect_reference ref)
 {
     auto& xref = cross_reference_table();

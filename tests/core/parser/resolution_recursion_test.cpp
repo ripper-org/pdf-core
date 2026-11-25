@@ -88,4 +88,70 @@ TEST_CASE("resolution depth limit is enforced", "[parser][resolver][limits]")
     REQUIRE_THROWS_WITH(doc.resolve_object(indirect_reference{1, 0}),
                         Catch::Matchers::ContainsSubstring("resolution depth"));
 }
+
+namespace
+{
+void add_resolved(document& doc, std::uint32_t number, object content)
+{
+    const auto ref = indirect_reference{number, 0};
+    doc.cross_reference_table().active_section().add_entry(cross_reference_entry{
+        ref, std::make_unique<indirect_object>(object_identity{&doc, ref}, std::move(content))});
+}
+} // namespace
+
+TEST_CASE("resolve_object_deep follows reference chains", "[document][resolver][deep]")
+{
+    document doc{nullptr, nullptr};
+
+    add_resolved(doc, 10, object{indirect_reference{11, 0}});
+    add_resolved(doc, 11, object{indirect_reference{12, 0}});
+    add_resolved(doc, 12, object{std::int64_t{42}});
+
+    const auto start = object{indirect_reference{10, 0}};
+    const auto* value = doc.resolve_object_deep(&start);
+
+    REQUIRE(value != nullptr);
+    REQUIRE(value->as_number() != nullptr);
+    REQUIRE(value->as_number()->as_integer() == 42);
+
+    // Non-reference values pass through unchanged.
+    const auto direct = object{dictionary_object{}};
+    REQUIRE(doc.resolve_object_deep(&direct) == &direct);
+}
+
+TEST_CASE("resolve_object_deep preserves null objects", "[document][resolver][deep]")
+{
+    document doc{nullptr, nullptr};
+
+    add_resolved(doc, 20, object{indirect_reference{21, 0}});
+    add_resolved(doc, 21, object{});
+
+    const auto chain = object{indirect_reference{20, 0}};
+    const auto* chained_null = doc.resolve_object_deep(&chain);
+    REQUIRE(chained_null != nullptr);
+    REQUIRE(chained_null->is_null());
+
+    const auto null = object{};
+    const auto* direct_null = doc.resolve_object_deep(&null);
+    REQUIRE(direct_null == &null);
+
+    // Only a null input pointer maps to nullptr.
+    REQUIRE(doc.resolve_object_deep(nullptr) == nullptr);
+
+    const auto missing = object{indirect_reference{99, 0}};
+    REQUIRE_THROWS_WITH(doc.resolve_object_deep(&missing),
+                        Catch::Matchers::ContainsSubstring("not found"));
+}
+
+TEST_CASE("resolve_object_deep rejects cyclic chains", "[document][resolver][deep][recursion]")
+{
+    document doc{nullptr, nullptr};
+
+    add_resolved(doc, 30, object{indirect_reference{31, 0}});
+    add_resolved(doc, 31, object{indirect_reference{30, 0}});
+
+    const auto cycle = object{indirect_reference{30, 0}};
+    REQUIRE_THROWS_WITH(doc.resolve_object_deep(&cycle),
+                        Catch::Matchers::ContainsSubstring("Cyclic indirect reference chain"));
+}
 } // namespace ripper::pdf::core

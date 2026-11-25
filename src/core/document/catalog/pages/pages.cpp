@@ -4,7 +4,6 @@
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page_tree_node.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
-#include "ripper/pdf/core/document/object/helpers/resolved_entry.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -117,7 +116,9 @@ const object* pages::inherited(std::string_view key)
             return nullptr;
         }
 
-        if (const auto* value = resolved_entry(*current, key); value != nullptr)
+        if (const auto* value =
+                current->identity().owner().resolve_object_deep(dict->get(std::string{key}));
+            value != nullptr && !value->is_null())
             return value;
 
         const auto* parent_ref = dict->get_indirect_reference("Parent");
