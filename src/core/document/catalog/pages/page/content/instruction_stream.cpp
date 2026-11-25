@@ -18,9 +18,8 @@ instruction_stream::instruction_stream(const stream_object& object, const resour
 {
     auto decoded = object.decode(limits);
 
-    if (decoded.owns())
+    if (auto* owned = decoded.owned_buffer())
     {
-        auto owned = std::move(decoded).release();
         storage_ = std::move(*owned);
         owns_ = true;
         rebind();
@@ -38,9 +37,8 @@ instruction_stream::instruction_stream(std::span<stream_object* const> objects,
     {
         auto decoded = objects.front()->decode(limits);
 
-        if (decoded.owns())
+        if (auto* owned = decoded.owned_buffer())
         {
-            auto owned = std::move(decoded).release();
             storage_ = std::move(*owned);
             owns_ = true;
             rebind();

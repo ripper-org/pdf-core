@@ -34,13 +34,13 @@ public:
     explicit page_contents(indirect_object& page_obj) noexcept;
 
     /// Returns `true` if /Contents is absent, null or an empty array.
-    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] bool empty() const;
 
     /// Returns `true` if /Contents is stored as an array, even a one-element one.
     ///
     /// For simplicity's sake, the library considers an array with a single
     /// element the same as a single stream.
-    [[nodiscard]] bool is_array() const noexcept;
+    [[nodiscard]] bool is_array() const;
 
     /// Returns the number of streams referenced by /Contents.
     ///
@@ -95,9 +95,9 @@ public:
 
 private:
     /// Returns the /Contents entry, or `nullptr` if absent or the page object
-    /// is not a dictionary. Never throws.
-    [[nodiscard]] class object* contents() noexcept;
-    [[nodiscard]] const class object* contents() const noexcept;
+    /// is not a dictionary.
+    [[nodiscard]] class object* contents();
+    [[nodiscard]] const class object* contents() const;
 
     /// Returns the page dictionary.
     ///

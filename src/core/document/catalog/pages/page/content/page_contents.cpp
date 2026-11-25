@@ -16,19 +16,21 @@ namespace ripper::pdf::core
 {
 page_contents::page_contents(indirect_object& page_obj) noexcept : object_view(page_obj) {}
 
-bool page_contents::empty() const noexcept
+bool page_contents::empty() const
 {
     const auto* entry = contents();
     if (entry == nullptr || entry->is_null())
         return true;
 
     const auto* arr = entry->as_array();
+
     return arr != nullptr && arr->empty();
 }
 
-bool page_contents::is_array() const noexcept
+bool page_contents::is_array() const
 {
     const auto* entry = contents();
+
     return entry != nullptr && entry->is_array();
 }
 
@@ -203,13 +205,13 @@ void page_contents::clear()
     *entry = object{};
 }
 
-object* page_contents::contents() noexcept
+object* page_contents::contents()
 {
     auto* dict = obj().content().as_dictionary();
     return dict == nullptr ? nullptr : dict->get("Contents");
 }
 
-const object* page_contents::contents() const noexcept
+const object* page_contents::contents() const
 {
     const auto* dict = obj().content().as_dictionary();
     return dict == nullptr ? nullptr : dict->get("Contents");

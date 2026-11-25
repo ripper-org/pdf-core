@@ -44,10 +44,22 @@ public:
         return {owned.data(), owned.size()};
     }
 
+    /// Returns a pointer to the owned buffer, or `nullptr` for a borrowed view.
+    [[nodiscard]] std::vector<std::byte>* owned_buffer() noexcept
+    {
+        return std::get_if<std::vector<std::byte>>(&data_);
+    }
+
+    /// Returns a pointer to the owned buffer, or `nullptr` for a borrowed view.
+    [[nodiscard]] const std::vector<std::byte>* owned_buffer() const noexcept
+    {
+        return std::get_if<std::vector<std::byte>>(&data_);
+    }
+
     /// Returns true when this value owns its buffer.
     [[nodiscard]] bool owns() const noexcept
     {
-        return std::holds_alternative<std::vector<std::byte>>(data_);
+        return owned_buffer() != nullptr;
     }
 
     /// Releases the owned buffer, or returns `std::nullopt` for a borrowed view.
