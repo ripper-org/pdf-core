@@ -3,6 +3,7 @@
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/catalog/catalog.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/pages.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/document/header.hpp"
@@ -64,6 +65,37 @@ catalog object_manager::create_catalog(document& doc)
     trl.dictionary().set("Root", object{catalog_ref});
 
     return ripper::pdf::core::catalog{*raw_catalog};
+}
+
+page object_manager::create_page(document& doc, pages& parent, const geometry::rect& box)
+{
+    auto& xref = doc.cross_reference_table();
+
+    const auto page_ref = xref.reserve();
+
+    const auto normalized =
+        geometry::rect::from_corners({box.x, box.y}, {box.x + box.width, box.y + box.height});
+
+    // /MediaBox uses the [llx lly urx ury] corner form (ISO 32000-1 §7.9.5).
+    array_object mediabox;
+    mediabox.push_back(object{normalized.x});
+    mediabox.push_back(object{normalized.y});
+    mediabox.push_back(object{normalized.x + normalized.width});
+    mediabox.push_back(object{normalized.y + normalized.height});
+
+    dictionary_object page_dict;
+    page_dict.set("Type", object{name_object{"Page"}});
+    page_dict.set("Parent", object{parent.obj().identity().reference()});
+    page_dict.set("MediaBox", object{std::move(mediabox)});
+
+    auto page_obj = std::make_unique<indirect_object>(object_identity{&doc, page_ref},
+                                                      object{std::move(page_dict)});
+
+    auto* raw_page = xref.commit(std::move(page_obj));
+    if (raw_page == nullptr)
+        throw logic_exception{"Failed to commit page to cross-reference table"};
+
+    return page{*raw_page};
 }
 
 page_contents object_manager::create_page_contents(document& doc, page& page)

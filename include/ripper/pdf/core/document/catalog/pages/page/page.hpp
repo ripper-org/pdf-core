@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
 
@@ -68,5 +69,58 @@ public:
     /// @throws logic_exception if the page is not a dictionary or the stream
     ///         cannot be committed.
     [[nodiscard]] canvas canvas(canvas_mode mode = canvas_mode::append);
+
+    /// Returns the effective /MediaBox of this page, inheriting from ancestors.
+    ///
+    /// /MediaBox is an inheritable page attribute (ISO 32000-1 §7.7.3.4), so
+    /// when the leaf has no entry of its own the /Parent chain is searched.
+    /// The returned rectangle keeps the box origin; corners are normalized so
+    /// `width` and `height` are never negative.
+    ///
+    /// When no /MediaBox exists anywhere in the chain, US Letter is returned,
+    /// matching the Acrobat fallback for malformed files.
+    ///
+    /// @throws logic_exception if a /Parent chain is cyclic.
+    [[nodiscard]] geometry::rect media_box();
+
+    /// Returns the effective /CropBox of this page, inheriting from ancestors.
+    ///
+    /// Falls back to `media_box()` when neither this page nor an ancestor
+    /// defines a /CropBox (ISO 32000-1 §14.11.2).
+    ///
+    /// @throws logic_exception if a /Parent chain is cyclic.
+    [[nodiscard]] geometry::rect crop_box();
+
+    /// Returns the effective /Rotate value of this page, inheriting from ancestors.
+    ///
+    /// The result is normalized to 0, 90, 180 or 270 degrees clockwise. A page
+    /// without a /Rotate entry anywhere in the chain reports 0.
+    ///
+    /// @throws logic_exception if the value is not a number or not a multiple
+    ///         of 90, or if a /Parent chain is cyclic.
+    [[nodiscard]] int rotation();
+
+    /// Returns the displayed width of the page in points.
+    ///
+    /// This is the /MediaBox width after applying `rotation()`: at 90 and 270
+    /// degrees the displayed dimensions swap. Use `media_box().width` for the
+    /// unrotated extent.
+    [[nodiscard]] double width();
+
+    /// Returns the displayed height of the page in points.
+    ///
+    /// Counterpart of `width()`; see its documentation for the rotation rules.
+    [[nodiscard]] double height();
+
+    /// Sets /Rotate on this page.
+    ///
+    /// The entry is written to this page's dictionary (never to an ancestor)
+    /// and normalized into 0, 90, 180 or 270. `0` effectively removes the
+    /// rotation, since 0 is also the inherited default.
+    ///
+    /// @throws logic_exception if `degrees` is not a multiple of 90 or the page
+    ///         is not a dictionary.
+    void rotate(int degrees);
 };
+
 } // namespace ripper::pdf::core

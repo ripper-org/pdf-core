@@ -7,9 +7,13 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
+#include <string_view>
 
 namespace ripper::pdf::core
 {
+class object;
+
 /// Typed view over a PDF pages tree indirect_object (/Type /Pages).
 ///
 /// Non-owning wrapper around an `indirect_object` stored in the cross-reference table.
@@ -25,6 +29,51 @@ public:
 
     /// Returns the total page count from the /Count entry.
     [[nodiscard]] std::uint64_t count() const;
+
+    /// Returns the parent /Pages node, or `std::nullopt` for the root node or
+    /// when /Parent is absent or does not point at a /Pages dictionary.
+    [[nodiscard]] std::optional<pages> parent();
+
+    /// Returns the value of an inheritable entry defined on this node or the
+    /// nearest ancestor.
+    ///
+    /// Inheritable page attributes (/MediaBox, /CropBox, /Rotate, /Resources, …)
+    /// are looked up along the /Parent chain (ISO 32000-1 §7.7.3.4). Indirect
+    /// values are resolved. Returns `nullptr` when no node in the chain defines
+    /// the entry.
+    ///
+    /// @throws logic_exception if this node is not a dictionary or the /Parent
+    ///         chain is cyclic.
+    [[nodiscard]] const object* inherited(std::string_view key);
+
+    /// Returns the /MediaBox defined on this node or the nearest ancestor.
+    ///
+    /// Returns `std::nullopt` when no node in the chain defines a valid box; it
+    /// does not synthesize a default. Callers that need a concrete box can use
+    /// `value_or(...)` (Acrobat and PDFium fall back to US Letter).
+    ///
+    /// @throws logic_exception if this node is not a dictionary or the /Parent
+    ///         chain is cyclic.
+    [[nodiscard]] std::optional<geometry::rect> media_box();
+
+    /// Returns the /CropBox defined on this node or the nearest ancestor.
+    ///
+    /// Returns `std::nullopt` when no node in the chain defines a valid box,
+    /// without falling back to `media_box()`; that fallback is a rendering
+    /// concern (ISO 32000-1 §14.11.2).
+    ///
+    /// @throws logic_exception if this node is not a dictionary or the /Parent
+    ///         chain is cyclic.
+    [[nodiscard]] std::optional<geometry::rect> crop_box();
+
+    /// Returns the /Rotate defined on this node or the nearest ancestor.
+    ///
+    /// The result is normalized to 0, 90, 180 or 270 degrees clockwise.
+    /// Returns `std::nullopt` when no node in the chain defines /Rotate.
+    ///
+    /// @throws logic_exception if the value is not a number or not a multiple
+    ///         of 90, or if the /Parent chain is cyclic.
+    [[nodiscard]] std::optional<int> rotation();
 
     /// Returns an optional page view for the page at `index` in the page tree, or
     /// `std::nullopt` if the page does not exist.
@@ -46,14 +95,16 @@ public:
     ///
     /// The default /MediaBox is US Letter; pass a `page_size` or a rectangle to
     /// override it. Negative extents are normalized.
-    [[nodiscard]] class page append_page(const geometry::rect& box = media_box(page_size::a4));
+    [[nodiscard]] class page
+    append_page(const geometry::rect& box = ripper::pdf::core::media_box(page_size::a4));
 
     /// Creates a page of `size` at the end of this node's /Kids.
     [[nodiscard]] class page append_page(page_size size,
                                          page_orientation orientation = page_orientation::portrait);
 
     /// Creates a page at the beginning of this node's /Kids.
-    [[nodiscard]] class page prepend_page(const geometry::rect& box = media_box(page_size::a4));
+    [[nodiscard]] class page
+    prepend_page(const geometry::rect& box = ripper::pdf::core::media_box(page_size::a4));
 
     /// Creates a page of `size` at the beginning of this node's /Kids.
     [[nodiscard]] class page
@@ -66,8 +117,9 @@ public:
     /// subtree node, not at this one.
     ///
     /// @throws logic_exception if `index > count()`.
-    [[nodiscard]] class page insert_page(std::uint64_t index,
-                                         const geometry::rect& box = media_box(page_size::a4));
+    [[nodiscard]] class page
+    insert_page(std::uint64_t index,
+                const geometry::rect& box = ripper::pdf::core::media_box(page_size::a4));
 
     /// Creates a page of `size` before position `index` in this node's subtree.
     [[nodiscard]] class page insert_page(std::uint64_t index, page_size size,

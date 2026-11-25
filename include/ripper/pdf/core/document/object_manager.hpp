@@ -12,6 +12,7 @@
 namespace ripper::pdf::core
 {
 class document;
+class pages;
 
 /// Static utility for parsing and creating PDF document objects.
 ///
@@ -60,6 +61,18 @@ public:
     ///
     /// @throws logic_exception if the xref or trailer operations fail.
     [[nodiscard]] static catalog create_catalog(document& doc);
+
+    /// Allocate a new /Page object parented at `parent`.
+    ///
+    /// Reserves an object reference, builds a page dictionary with
+    /// `/Type /Page`, `/Parent`, and a normalized `/MediaBox`, commits it to the
+    /// xref, and returns a typed view.
+    ///
+    /// The page is not added to `parent`'s /Kids; the caller is responsible for
+    /// inserting the reference and updating /Count.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static page create_page(document& doc, pages& parent, const geometry::rect& box);
 
     /// Allocate an empty content stream and attach it to a page's /Contents.
     ///
