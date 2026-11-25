@@ -73,7 +73,7 @@ public:
     ///
     /// @throws logic_exception if the value is not a number or not a multiple
     ///         of 90, or if the /Parent chain is cyclic.
-    [[nodiscard]] std::optional<int> rotation();
+    [[nodiscard]] std::optional<page_rotation> rotation();
 
     /// Returns an optional page view for the page at `index` in the page tree, or
     /// `std::nullopt` if the page does not exist.

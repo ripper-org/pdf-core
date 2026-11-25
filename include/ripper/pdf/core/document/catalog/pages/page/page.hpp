@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/rotation.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
@@ -98,7 +99,7 @@ public:
     ///
     /// @throws logic_exception if the value is not a number or not a multiple
     ///         of 90, or if a /Parent chain is cyclic.
-    [[nodiscard]] int rotation();
+    [[nodiscard]] page_rotation rotation();
 
     /// Returns the displayed width of the page in points.
     ///

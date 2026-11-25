@@ -1,10 +1,10 @@
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
 
-#include "core/document/catalog/pages/page_attribute.hpp"
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page_tree_node.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
+#include "ripper/pdf/core/document/object/helpers/resolved_entry.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -117,19 +117,8 @@ const object* pages::inherited(std::string_view key)
             return nullptr;
         }
 
-        if (const auto* value = dict->get(std::string{key}); value != nullptr)
-        {
-            if (const auto* ref = value->as_indirect_reference())
-            {
-                auto* resolved = current->identity().owner().resolve_object(*ref);
-                if (resolved != nullptr && !resolved->content().is_null())
-                    return &resolved->content();
-            }
-            else if (!value->is_null())
-            {
-                return value;
-            }
-        }
+        if (const auto* value = resolved_entry(*current, key); value != nullptr)
+            return value;
 
         const auto* parent_ref = dict->get_indirect_reference("Parent");
         if (parent_ref == nullptr)
@@ -149,7 +138,7 @@ std::optional<geometry::rect> pages::media_box()
     if (value == nullptr)
         return std::nullopt;
 
-    return page_attribute::read_box(obj().identity().owner(), *value);
+    return geometry::rect::from(obj().identity().owner(), *value);
 }
 
 std::optional<geometry::rect> pages::crop_box()
@@ -158,24 +147,16 @@ std::optional<geometry::rect> pages::crop_box()
     if (value == nullptr)
         return std::nullopt;
 
-    return page_attribute::read_box(obj().identity().owner(), *value);
+    return geometry::rect::from(obj().identity().owner(), *value);
 }
 
-std::optional<int> pages::rotation()
+std::optional<page_rotation> pages::rotation()
 {
     const auto* value = inherited("Rotate");
     if (value == nullptr)
         return std::nullopt;
 
-    const auto* number = value->as_number();
-    if (number == nullptr)
-        throw logic_exception{"Page /Rotate is not a number"};
-
-    const auto normalized = page_attribute::normalize_rotation(number->as_integer());
-    if (normalized % 90 != 0)
-        throw logic_exception{"Page /Rotate must be a multiple of 90 degrees"};
-
-    return normalized;
+    return page_rotation::from(*value);
 }
 
 std::optional<class page> pages::page(std::uint64_t index)

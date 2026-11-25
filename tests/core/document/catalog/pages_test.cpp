@@ -139,11 +139,12 @@ TEST_CASE("page geometry inherits from ancestor nodes", "[pages]")
     // The /Pages node exposes the same inherited values directly.
     REQUIRE(pages.media_box() == media_box(page_size::a3));
     REQUIRE_FALSE(pages.crop_box().has_value());
-    REQUIRE(pages.rotation() == 90);
+    REQUIRE(pages.rotation().has_value());
+    REQUIRE(pages.rotation()->degrees() == 90);
 
     REQUIRE(target.media_box() == media_box(page_size::a3));
     REQUIRE(target.crop_box() == media_box(page_size::a3));
-    REQUIRE(target.rotation() == 90);
+    REQUIRE(target.rotation().degrees() == 90);
     REQUIRE(target.width() == media_box(page_size::a3).height);
     REQUIRE(target.height() == media_box(page_size::a3).width);
 }
@@ -167,7 +168,7 @@ TEST_CASE("page geometry falls back to defaults", "[pages]")
 
     REQUIRE(target.media_box() == media_box(page_size::letter));
     REQUIRE(target.crop_box() == media_box(page_size::letter));
-    REQUIRE(target.rotation() == 0);
+    REQUIRE(target.rotation().degrees() == 0);
     REQUIRE(target.width() == media_box(page_size::letter).width);
     REQUIRE(target.height() == media_box(page_size::letter).height);
 }
@@ -199,17 +200,17 @@ TEST_CASE("page rotate normalizes and swaps displayed dimensions", "[pages]")
     REQUIRE(target.height() == box.height);
 
     target.rotate(90);
-    REQUIRE(target.rotation() == 90);
+    REQUIRE(target.rotation().degrees() == 90);
     REQUIRE(target.width() == box.height);
     REQUIRE(target.height() == box.width);
 
     target.rotate(-90);
-    REQUIRE(target.rotation() == 270);
+    REQUIRE(target.rotation().degrees() == 270);
     REQUIRE(target.width() == box.height);
     REQUIRE(target.height() == box.width);
 
     target.rotate(450);
-    REQUIRE(target.rotation() == 90);
+    REQUIRE(target.rotation().degrees() == 90);
     REQUIRE_THROWS_AS(target.rotate(45), logic_exception);
 
     REQUIRE_NOTHROW(doc.save());
@@ -217,7 +218,7 @@ TEST_CASE("page rotate normalizes and swaps displayed dimensions", "[pages]")
     auto reopened = document::open(output.path());
     auto page = reopened.catalog().pages().page(0);
     REQUIRE(page.has_value());
-    REQUIRE(page->rotation() == 90);
+    REQUIRE(page->rotation().degrees() == 90);
     REQUIRE(page->width() == box.height);
     REQUIRE(page->height() == box.width);
 }

@@ -3,6 +3,13 @@
 #include "ripper/pdf/core/document/geometry/point.hpp"
 
 #include <algorithm>
+#include <optional>
+
+namespace ripper::pdf::core
+{
+class document;
+class object;
+} // namespace ripper::pdf::core
 
 namespace ripper::pdf::core::geometry
 {
@@ -35,6 +42,13 @@ struct rect
             std::max(first.y, second.y) - bottom,
         };
     }
+
+    /// Parses a four-number `[llx lly urx ury]` array (ISO 32000-1 §7.9.5).
+    ///
+    /// Array entries may be indirect references; they are resolved through `doc`.
+    /// Returns `std::nullopt` when `value` is not a four-number array. Corners
+    /// are normalized so extents are never negative.
+    [[nodiscard]] static std::optional<rect> from(document& doc, const object& value);
 
     bool operator==(const rect& other) const noexcept = default;
 };
