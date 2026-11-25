@@ -131,7 +131,7 @@ TEST_CASE("attaching a writer makes a document saveable", "[document][save]")
     REQUIRE(doc.has_serializer());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
+    (void)pages.append_page();
 
     REQUIRE_NOTHROW(doc.save());
 

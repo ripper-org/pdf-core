@@ -55,9 +55,9 @@ TEST_CASE("document writes and re-opens a created PDF", "[document][e2e][write]"
     REQUIRE(writer_doc.has_serializer());
 
     auto pages = writer_doc.catalog().pages();
-    (void)pages.add_page();
-    (void)pages.add_page();
-    (void)pages.add_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
 
     REQUIRE_NOTHROW(writer_doc.save());
     REQUIRE(std::filesystem::exists(output.path()));
@@ -66,7 +66,7 @@ TEST_CASE("document writes and re-opens a created PDF", "[document][e2e][write]"
     REQUIRE(read_back_doc.catalog().pages().count() == 3);
 }
 
-TEST_CASE("add_page updates /Count on the pages node", "[document][e2e][write]")
+TEST_CASE("append_page updates /Count on the pages node", "[document][e2e][write]")
 {
     test_fixture::scoped_temp_file output{"pdf_ripper_core_document_add_count_test.pdf"};
 
@@ -75,13 +75,13 @@ TEST_CASE("add_page updates /Count on the pages node", "[document][e2e][write]")
     auto pages = writer_doc.catalog().pages();
     REQUIRE(pages.count() == 0);
 
-    (void)pages.add_page();
+    (void)pages.append_page();
     REQUIRE(pages.count() == 1);
 
-    (void)pages.add_page();
+    (void)pages.append_page();
     REQUIRE(pages.count() == 2);
 
-    (void)pages.add_page();
+    (void)pages.append_page();
     REQUIRE(pages.count() == 3);
 
     REQUIRE_NOTHROW(writer_doc.save());
@@ -112,7 +112,7 @@ TEST_CASE("document edits an already existing PDF", "[document][e2e][write]")
     const auto initial_count = pages.count();
     REQUIRE(initial_count > 0);
 
-    pages.delete_page(2);
+    pages.remove(2);
     REQUIRE(pages.count() == initial_count - 1);
 
     REQUIRE_NOTHROW(doc.save());

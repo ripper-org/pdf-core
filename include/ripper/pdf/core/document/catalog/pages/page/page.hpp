@@ -5,6 +5,8 @@
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
 
+#include <cstdint>
+
 namespace ripper::pdf::core
 {
 class pages;
@@ -14,12 +16,36 @@ class page : public object_view
 public:
     explicit page(indirect_object& obj) noexcept;
 
-    /// Returns the parent /Pages node of this page, or std::nullopt if /Parent is absent
-    /// or cannot be resolved.
+    /// Returns the parent /Pages node of this page.
     ///
-    /// Per the PDF spec (§7.7.3.3) the /Parent of every /Page leaf is always a /Pages node,
-    /// so the returned view exposes the full pages API (count, each, add_page, delete_page…).
+    /// Per the PDF spec (§7.7.3.3) the /Parent of every /Page leaf is always a /Pages
+    /// node, so the returned view exposes the full pages API (count, each,
+    /// append_page, remove…).
+    ///
+    /// @throws logic_exception if /Parent is absent, cannot be resolved, or does
+    ///         not point at a /Type /Pages dictionary.
     [[nodiscard]] pages parent();
+
+    /// Returns this page's position within its parent /Kids, counted in pages.
+    ///
+    /// The index is relative to the immediate parent node, matching
+    /// `pages::remove()` and `pages::insert_page()` on that node.
+    ///
+    /// @throws logic_exception if the page has no /Parent or is not present in
+    ///         its parent's /Kids.
+    [[nodiscard]] std::uint64_t index();
+
+    /// Removes this page from the page tree.
+    ///
+    /// Detaches the page from its parent's /Kids, decrements /Count on the parent
+    /// and every ancestor, and marks the page object deleted. Named after
+    /// `pages::remove()` because `delete` is a keyword.
+    ///
+    /// The view is invalid after this call.
+    ///
+    /// @throws logic_exception if the page has no /Parent or is not present in
+    ///         its parent's /Kids.
+    void remove();
 
     /// Returns the page's /Contents entry.
     ///

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page_size.hpp"
+#include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/object/helpers/object_view.hpp"
 
 #include <cstdint>
@@ -12,6 +14,10 @@ namespace ripper::pdf::core
 ///
 /// Non-owning wrapper around an `indirect_object` stored in the cross-reference table.
 /// Ownership remains with the `cross_reference_entry` that holds the indirect_object.
+///
+/// Page indices used by this class are relative to this node's subtree, so a root
+/// `/Pages` view works in document order while a nested node counts only its own
+/// descendants.
 class pages : public object_view
 {
 public:
@@ -36,20 +42,47 @@ public:
     /// Throws if callback is empty or if an expected page cannot be resolved.
     void each(const std::function<void(class page&)>& callback);
 
-    /// Creates a new page and adds it to the end of the page tree.
+    /// Creates a page at the end of this node's /Kids.
     ///
-    /// Also updates the /Kids and /Count entries on this pages node.
-    /// The new page is returned as a view.
-    [[nodiscard]] class page add_page();
+    /// The default /MediaBox is US Letter; pass a `page_size` or a rectangle to
+    /// override it. Negative extents are normalized.
+    [[nodiscard]] class page append_page(const geometry::rect& box = media_box(page_size::a4));
 
-    /// Deletes the page at `index` in document order.
+    /// Creates a page of `size` at the end of this node's /Kids.
+    [[nodiscard]] class page append_page(page_size size,
+                                         page_orientation orientation = page_orientation::portrait);
+
+    /// Creates a page at the beginning of this node's /Kids.
+    [[nodiscard]] class page prepend_page(const geometry::rect& box = media_box(page_size::a4));
+
+    /// Creates a page of `size` at the beginning of this node's /Kids.
+    [[nodiscard]] class page
+    prepend_page(page_size size, page_orientation orientation = page_orientation::portrait);
+
+    /// Creates a page before position `index` in this node's subtree.
     ///
-    /// If `index` is out of range, this is a no-op.
-    void delete_page(std::uint64_t index);
+    /// `index == count()` appends. When `index` falls inside a child /Pages node,
+    /// the page is inserted into that subtree and its /Parent points at the
+    /// subtree node, not at this one.
+    ///
+    /// @throws logic_exception if `index > count()`.
+    [[nodiscard]] class page insert_page(std::uint64_t index,
+                                         const geometry::rect& box = media_box(page_size::a4));
+
+    /// Creates a page of `size` before position `index` in this node's subtree.
+    [[nodiscard]] class page insert_page(std::uint64_t index, page_size size,
+                                         page_orientation orientation = page_orientation::portrait);
+
+    /// Removes the page at `index` from the page tree.
+    ///
+    /// Detaches it from its parent's /Kids, decrements /Count on the parent and
+    /// every ancestor, and marks the page object deleted in the cross-reference
+    /// table. Out-of-range indices are a no-op.
+    void remove(std::uint64_t index);
 
     /// Deletes the page and all child objects at `index` in document order.
     ///
-    /// If `index` is out of range, this is a no-op.
-    void prune_page(std::uint64_t index);
+    /// Not implemented yet.
+    void prune(std::uint64_t index);
 };
 } // namespace ripper::pdf::core

@@ -22,8 +22,8 @@ TEST_CASE("consolidate save strategy writes and re-opens a created PDF",
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
-    (void)pages.add_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
 
     consolidate_document_save_strategy strategy;
     REQUIRE_NOTHROW(strategy.save(doc));
@@ -40,8 +40,8 @@ TEST_CASE("dump save strategy writes and re-opens a created PDF", "[document][e2
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
-    (void)pages.add_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
 
     dump_document_save_strategy strategy;
     REQUIRE_NOTHROW(strategy.save(doc));
@@ -59,7 +59,7 @@ TEST_CASE("save with save_strategy_type enum selects built-in strategy",
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
+    (void)pages.append_page();
 
     REQUIRE_NOTHROW(doc.save(save_strategy_type::consolidate));
     REQUIRE(std::filesystem::exists(output.path()));
@@ -75,9 +75,9 @@ TEST_CASE("set_save_strategy injects a custom strategy", "[document][e2e][save][
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
-    (void)pages.add_page();
-    (void)pages.add_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
 
     doc.set_save_strategy(std::make_unique<consolidate_document_save_strategy>());
     REQUIRE_NOTHROW(doc.save());
@@ -94,7 +94,7 @@ TEST_CASE("set_save_strategy with nullptr resets to default", "[document][e2e][s
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
+    (void)pages.append_page();
 
     doc.set_save_strategy(std::make_unique<consolidate_document_save_strategy>());
     doc.set_save_strategy(nullptr);
@@ -111,8 +111,8 @@ TEST_CASE("save with enum ignores injected strategy", "[document][e2e][save][enu
     auto doc = document::create(output.path());
 
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
-    (void)pages.add_page();
+    (void)pages.append_page();
+    (void)pages.append_page();
 
     doc.set_save_strategy(std::make_unique<dump_document_save_strategy>());
     REQUIRE_NOTHROW(doc.save(save_strategy_type::consolidate));
@@ -289,7 +289,7 @@ TEST_CASE("incremental save with page tree copy adds a page", "[document][e2e][s
 
     // Now add a page, the lookup resolves the page tree from the new section.
     auto pages = doc.catalog().pages();
-    (void)pages.add_page();
+    (void)pages.append_page();
 
     REQUIRE_NOTHROW(doc.save(save_strategy_type::incremental));
     REQUIRE(std::filesystem::exists(output.path()));
@@ -311,13 +311,13 @@ TEST_CASE("incremental save with rebind_to_active_revision adds a page without m
     auto writer = std::make_unique<ripper::io::core::file_writer>(output.path());
     document doc{std::move(reader), std::move(writer)};
 
-    // Create a new revision and rely on add_page's internal rebind_to_active_revision
+    // Create a new revision and rely on append_page's internal rebind_to_active_revision
     doc.create_new_revision();
 
     auto pages = doc.catalog().pages();
     REQUIRE(pages.count() == 3);
 
-    (void)pages.add_page();
+    (void)pages.append_page();
 
     REQUIRE_NOTHROW(doc.save(save_strategy_type::incremental));
     REQUIRE(std::filesystem::exists(output.path()));
@@ -339,13 +339,13 @@ TEST_CASE("incremental save with rebind_to_active_revision deletes a page withou
     auto writer = std::make_unique<ripper::io::core::file_writer>(output.path());
     document doc{std::move(reader), std::move(writer)};
 
-    // Create a new revision and rely on delete_page's internal rebind_to_active_revision
+    // Create a new revision and rely on remove's internal rebind_to_active_revision
     doc.create_new_revision();
 
     auto pages = doc.catalog().pages();
     REQUIRE(pages.count() == 3);
 
-    pages.delete_page(0);
+    pages.remove(0);
     REQUIRE(pages.count() == 2);
 
     REQUIRE_NOTHROW(doc.save(save_strategy_type::incremental));

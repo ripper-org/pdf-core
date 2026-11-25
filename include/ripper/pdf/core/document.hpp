@@ -231,7 +231,7 @@ public:
     /// objects can be added by calling `reserve()` on the active section, then
     /// constructing the object with the returned reference and `commit()`-ing it.
     ///
-    /// Convenience wrappers (e.g. `pages::add_page()`) automatically rebind
+    /// Convenience wrappers (e.g. `pages::append_page()`) automatically rebind
     /// themselves to the active revision, so most users only need to call
     /// `create_new_revision()` before making changes and saving incrementally.
     ///

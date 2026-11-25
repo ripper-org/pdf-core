@@ -7,15 +7,104 @@
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_set>
+#include <utility>
 
 namespace ripper::pdf::core
 {
+namespace
+{
+/// Creates a committed page object parented at `owner` with the given /MediaBox.
+[[nodiscard]] page create_page(pages& owner, const geometry::rect& box)
+{
+    auto& doc = owner.obj().identity().owner();
+    auto& xref = doc.cross_reference_table();
+
+    const auto page_ref = xref.reserve();
+
+    const auto normalized =
+        geometry::rect::from_corners({box.x, box.y}, {box.x + box.width, box.y + box.height});
+
+    array_object mediabox;
+    mediabox.push_back(object{normalized.x});
+    mediabox.push_back(object{normalized.y});
+    mediabox.push_back(object{normalized.width});
+    mediabox.push_back(object{normalized.height});
+
+    ripper::pdf::core::dictionary_object page_dict;
+    page_dict.set("Type", object{name_object{"Page"}});
+    page_dict.set("Parent", object{owner.obj().identity().reference()});
+    page_dict.set("MediaBox", object{std::move(mediabox)});
+
+    auto page_obj = std::make_unique<indirect_object>(object_identity{&doc, page_ref},
+                                                      object{std::move(page_dict)});
+
+    auto* raw_page = xref.commit(std::move(page_obj));
+    if (raw_page == nullptr)
+        throw logic_exception{"Failed to commit page to cross-reference table"};
+
+    return page{*raw_page};
+}
+
+/// Inserts `ref` at `child_index` in the node's /Kids, creating /Kids if absent.
+void insert_kid(pages& owner, std::size_t child_index, const indirect_reference& ref)
+{
+    auto* d = owner.obj().content().as_dictionary();
+    if (d == nullptr)
+        throw logic_exception{"Pages content is not a dictionary"};
+
+    if (d->get_array("Kids") == nullptr)
+        d->set("Kids", object{array_object{}});
+
+    auto* kids = d->get_array("Kids");
+    auto& items = kids->items();
+    items.insert(items.begin() + static_cast<std::ptrdiff_t>(child_index), object{ref});
+}
+
+/// Adds `delta` to /Count on `node` and every ancestor, stopping at the root.
+void bump_counts(page_tree_node node, std::int64_t delta)
+{
+    std::unordered_set<indirect_reference> visited;
+
+    while (true)
+    {
+        const auto node_ref = node.obj().identity().reference();
+        if (!visited.insert(node_ref).second)
+            throw logic_exception{"Cyclic /Parent chain detected while climbing the page tree"};
+
+        node.rebind_to_active_revision();
+
+        auto* d = node.obj().content().as_dictionary();
+        if (d == nullptr)
+            break;
+
+        auto* count = d->get_number("Count");
+        if (count == nullptr)
+            break;
+
+        if (delta < 0 && count->as_integer() <= 0)
+            break;
+
+        d->set("Count", object{count->as_integer() + delta});
+
+        if (node.is_root())
+            break;
+
+        auto up = node.parent();
+        if (!up)
+            break;
+
+        node = *up;
+    }
+}
+} // namespace
+
 pages::pages(indirect_object& obj) noexcept : object_view(obj) {}
 
 std::uint64_t pages::count() const
@@ -128,145 +217,125 @@ void pages::each(const std::function<void(class page&)>& callback)
     walk(page_tree_node{obj()}, 0);
 }
 
-class page pages::add_page()
+class page pages::append_page(const geometry::rect& box)
+{
+    return insert_page(count(), box);
+}
+
+class page pages::append_page(page_size size, page_orientation orientation)
+{
+    return append_page(media_box(size, orientation));
+}
+
+class page pages::prepend_page(const geometry::rect& box)
+{
+    return insert_page(0, box);
+}
+
+class page pages::prepend_page(page_size size, page_orientation orientation)
+{
+    return prepend_page(media_box(size, orientation));
+}
+
+class page pages::insert_page(std::uint64_t index, const geometry::rect& box)
 {
     rebind_to_active_revision();
 
+    if (index > count())
+        throw logic_exception{"Page index out of range"};
+
     auto& doc = obj().identity().owner();
-    auto& xref = doc.cross_reference_table();
 
-    const auto page_ref = xref.reserve();
-
-    // This should in fact be a parameter
-    array_object mediabox;
-    mediabox.push_back(object{std::int64_t{0}});
-    mediabox.push_back(object{std::int64_t{0}});
-    mediabox.push_back(object{std::int64_t{612}});
-    mediabox.push_back(object{std::int64_t{792}});
-
-    ripper::pdf::core::dictionary_object page_dict;
-    page_dict.set("Type", object{name_object{"Page"}});
-    page_dict.set("Parent", object{obj().identity().reference()});
-    page_dict.set("MediaBox", object{std::move(mediabox)});
-
-    auto page_obj = std::make_unique<indirect_object>(object_identity{&doc, page_ref},
-                                                      object{std::move(page_dict)});
-
-    auto* raw_page = xref.commit(std::move(page_obj));
-    if (raw_page == nullptr)
-        throw logic_exception{"Failed to commit page to cross-reference table"};
-
-    // Update /Kids and /Count on this pages node
     auto* d = obj().content().as_dictionary();
     if (d == nullptr)
         throw logic_exception{"Pages content is not a dictionary"};
 
-    if (d->get_array("Kids") == nullptr)
-        d->set("Kids", object{array_object{}});
+    // Walk the children, skipping whole subtrees, until `remaining` reaches the
+    // insertion point. `child_index` is the /Kids slot for this node; a subnode
+    // that contains the insertion point is recursed into instead.
+    std::uint64_t remaining = index;
+    std::size_t child_index = 0;
+    std::optional<pages> subtree;
 
-    auto* kids = d->get_array("Kids");
-    kids->push_back(object{page_ref});
-
-    std::uint64_t count = 0;
-
-    const auto* count_ptr = d->get_number("Count");
-    if (count_ptr != nullptr)
-        count = static_cast<std::uint64_t>(count_ptr->as_integer());
-
-    d->set("Count", object{static_cast<std::int64_t>(count + 1)});
-
-    auto node = page_tree_node{obj()};
-    std::unordered_set<indirect_reference> visited;
-    while (true)
+    if (auto* kids = d->get_array("Kids"); kids != nullptr)
     {
-        const auto node_ref = node.obj().identity().reference();
-        if (!visited.insert(node_ref).second)
-            throw logic_exception{"Cyclic /Parent chain detected while climbing the page tree"};
+        for (; child_index < kids->size(); ++child_index)
+        {
+            const auto* ref = (*kids)[child_index].as_indirect_reference();
+            if (ref == nullptr)
+                throw logic_exception{"Kid entry is not an indirect reference"};
 
-        node.rebind_to_active_revision();
+            auto* resolved = doc.resolve_object(*ref);
+            if (resolved == nullptr)
+                throw logic_exception{"Failed to resolve kid reference"};
 
-        auto up = node.parent();
-        if (!up)
-            break;
+            page_tree_node kid{*resolved};
 
-        up->rebind_to_active_revision();
+            if (kid.is_leaf())
+            {
+                if (remaining == 0)
+                    break;
 
-        auto* pd = up->obj().content().as_dictionary();
-        if (pd == nullptr)
-            break;
+                --remaining;
+                continue;
+            }
 
-        auto* pc = pd->get_number("Count");
-        if (pc == nullptr)
-            break;
+            const auto subtree_size = kid.subtree_count();
+            if (remaining == 0)
+                break;
 
-        pd->set("Count", object{pc->as_integer() + 1});
+            if (remaining < subtree_size)
+            {
+                subtree = kid.as_pages();
+                break;
+            }
 
-        if (up->is_root())
-            break;
-
-        node = *up;
+            remaining -= subtree_size;
+        }
     }
 
-    return ripper::pdf::core::page{*raw_page};
+    if (subtree)
+        return subtree->insert_page(remaining, box);
+
+    auto created = create_page(*this, box);
+    insert_kid(*this, child_index, created.obj().identity().reference());
+    bump_counts(page_tree_node{obj()}, 1);
+
+    return created;
 }
 
-void pages::delete_page(std::uint64_t page_index)
+class page pages::insert_page(std::uint64_t index, page_size size, page_orientation orientation)
+{
+    return insert_page(index, media_box(size, orientation));
+}
+
+void pages::remove(std::uint64_t page_index)
 {
     rebind_to_active_revision();
 
-    auto pg = this->page(page_index);
-    if (!pg)
+    auto target = page(page_index);
+    if (!target)
         return;
 
-    const auto& page_ref = pg->obj().identity().reference();
-    auto node = page_tree_node{pg->obj()};
+    const auto& page_ref = target->obj().identity().reference();
+    auto node = page_tree_node{target->obj()};
 
-    // Remove from parent's /Kids
+    // Remove from parent's /Kids and fix /Count on the parent and all ancestors.
     auto maybe_parent = node.parent();
     if (!maybe_parent)
         return;
 
     maybe_parent->remove_child(page_ref);
-
-    // Decrement /Count on the immediate parent and every ancestor up to the root
-    auto ancestor = *maybe_parent;
-    std::unordered_set<indirect_reference> visited;
-    while (true)
-    {
-        const auto ancestor_ref = ancestor.obj().identity().reference();
-        if (!visited.insert(ancestor_ref).second)
-            throw logic_exception{"Cyclic /Parent chain detected while climbing the page tree"};
-
-        ancestor.rebind_to_active_revision();
-
-        auto* d = ancestor.obj().content().as_dictionary();
-        if (d == nullptr)
-            break;
-
-        auto* count_ptr = d->get_number("Count");
-        if (count_ptr == nullptr || count_ptr->as_integer() <= 0)
-            break;
-
-        d->set("Count", object{count_ptr->as_integer() - 1});
-
-        if (ancestor.is_root())
-            break;
-
-        auto up = ancestor.parent();
-        if (!up)
-            break;
-
-        ancestor = *up;
-    }
+    bump_counts(*maybe_parent, -1);
 
     // Mark the xref entry as deleted so it is pruned on full rewrite and
     // threaded into the §7.5.4 free list for incremental saves.
-    auto& xref = pg->obj().identity().owner().cross_reference_table();
+    auto& xref = target->obj().identity().owner().cross_reference_table();
     xref.mark_deleted(page_ref);
 }
 
-void pages::prune_page(std::uint64_t page_index)
+void pages::prune(std::uint64_t page_index)
 {
-    throw logic_exception{"Not implemented: pages::prune_page"};
+    throw logic_exception{"Not implemented: pages::prune"};
 }
 } // namespace ripper::pdf::core

@@ -40,7 +40,7 @@ public:
     [[nodiscard]] page first_page()
     {
         auto pages = doc_.catalog().pages();
-        (void)pages.add_page();
+        (void)pages.append_page();
 
         auto added = pages.page(0);
         REQUIRE(added.has_value());

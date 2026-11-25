@@ -3,6 +3,7 @@
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page_tree_node.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
@@ -38,6 +39,32 @@ pages page::parent()
         throw logic_exception{"Page /Parent object does not have /Type /Pages"};
 
     return pages{*resolved};
+}
+
+std::uint64_t page::index()
+{
+    page_tree_node node{obj()};
+    auto parent = node.parent();
+    if (!parent)
+        throw logic_exception{"Page has no /Parent and no index"};
+
+    std::uint64_t position = 0;
+
+    for (auto kid : parent->children())
+    {
+        if (kid.obj().identity().reference() == obj().identity().reference())
+            return position;
+
+        position += kid.is_leaf() ? 1 : kid.subtree_count();
+    }
+
+    throw logic_exception{"Page is not present in its parent's /Kids"};
+}
+
+void page::remove()
+{
+    auto parent_pages = parent();
+    parent_pages.remove(index());
 }
 
 page_contents page::content()
