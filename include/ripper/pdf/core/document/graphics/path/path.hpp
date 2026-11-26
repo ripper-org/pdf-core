@@ -7,20 +7,20 @@
 #include <initializer_list>
 #include <span>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
-class canvas;
+class brush;
 
-/// Fluent view over a path being built on a `canvas` (§8.5.2).
+/// Fluent view over a path being built on a `brush` (§8.5.2).
 ///
-/// Obtained from `canvas::path()`. The view owns the state of the path it
+/// Obtained from `brush::path()`. The view owns the state of the path it
 /// builds: painting ends the path, after which the same view may start the
-/// next one. Because that state lives here rather than in the canvas, a fresh
-/// view from `canvas::path()` starts with no open path, and path operators
-/// written through `canvas::op()` are not visible to it.
+/// next one. Because that state lives here rather than in the brush, a fresh
+/// view from `brush::path()` starts with no open path, and path operators
+/// written through `brush::op()` are not visible to it.
 ///
 /// Every construction call returns `*this` for chaining, while the terminal
-/// painting calls return the owning canvas so a chain can continue at canvas
+/// painting calls return the owning brush so a chain can continue at brush
 /// level:
 ///
 /// ```cpp
@@ -127,7 +127,7 @@ public:
                   double sweep_degrees);
 
     /// Graphics-state parameters are legal at any point in a path, so the
-    /// canvas setters are forwarded here for chaining.
+    /// brush setters are forwarded here for chaining.
     path& set_line_width(double width);
     path& set_line_cap(line_cap cap);
     path& set_line_join(line_join join);
@@ -135,35 +135,35 @@ public:
     path& set_dash_pattern(std::span<const double> pattern, double phase = 0.0);
     path& set_dash_pattern(std::initializer_list<double> pattern, double phase = 0.0);
 
-    /// Paint the path with `style` and end it. Returns the owning canvas.
+    /// Paint the path with `style` and end it. Returns the owning brush.
     ///
     /// @throws logic_exception if no path is open.
-    canvas& paint(paint_style style);
+    brush& paint(paint_style style);
 
     /// Stroke the path (`S`) and end it.
-    canvas& stroke();
+    brush& stroke();
 
     /// Fill the path (`f` or `f*`) and end it, implicitly closing subpaths.
-    canvas& fill(fill_rule rule = fill_rule::nonzero);
+    brush& fill(fill_rule rule = fill_rule::nonzero);
 
     /// Fill and stroke the path (`B` or `B*`) and end it.
-    canvas& fill_and_stroke(fill_rule rule = fill_rule::nonzero);
+    brush& fill_and_stroke(fill_rule rule = fill_rule::nonzero);
 
     /// Intersect the clip region with the path and end it (`W`/`W*` then `n`).
-    canvas& clip(fill_rule rule = fill_rule::nonzero);
+    brush& clip(fill_rule rule = fill_rule::nonzero);
 
     /// Discard the path without painting (`n`) and end it.
-    canvas& discard();
+    brush& discard();
 
 private:
-    friend class canvas;
+    friend class brush;
 
-    explicit path(canvas& target) noexcept : canvas_{&target} {}
+    explicit path(brush& target) noexcept : brush_{&target} {}
 
     /// @throws logic_exception if this view has no open path.
     void ensure_open() const;
 
-    canvas* canvas_;
+    brush* brush_;
     bool open_ = false;
 };
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

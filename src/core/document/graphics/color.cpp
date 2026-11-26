@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 namespace
 {
@@ -55,4 +55,4 @@ std::span<const double> color::components() const noexcept
 {
     return {components_.data(), component_count_};
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

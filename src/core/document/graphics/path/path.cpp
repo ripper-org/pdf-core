@@ -1,7 +1,7 @@
-#include "ripper/pdf/core/document/canvas/path/path.hpp"
+#include "ripper/pdf/core/document/graphics/path/path.hpp"
 
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/operator.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <algorithm>
@@ -9,7 +9,7 @@
 #include <numbers>
 #include <string_view>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 namespace
 {
@@ -51,7 +51,7 @@ constexpr double quarter_circle_kappa = 0.5522847498307936;
 
 path& path::move_to(geometry::point p)
 {
-    canvas_->op(content_operator::m, {object{p.x}, object{p.y}});
+    brush_->op(content_operator::m, {object{p.x}, object{p.y}});
     open_ = true;
     return *this;
 }
@@ -60,7 +60,7 @@ path& path::line_to(geometry::point p)
 {
     ensure_open();
 
-    canvas_->op(content_operator::l, {object{p.x}, object{p.y}});
+    brush_->op(content_operator::l, {object{p.x}, object{p.y}});
     return *this;
 }
 
@@ -68,8 +68,8 @@ path& path::curve_to(geometry::point c1, geometry::point c2, geometry::point end
 {
     ensure_open();
 
-    canvas_->op(content_operator::c, {object{c1.x}, object{c1.y}, object{c2.x}, object{c2.y},
-                                      object{end.x}, object{end.y}});
+    brush_->op(content_operator::c, {object{c1.x}, object{c1.y}, object{c2.x}, object{c2.y},
+                                     object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -77,7 +77,7 @@ path& path::curve_to_replicated_start(geometry::point c2, geometry::point end)
 {
     ensure_open();
 
-    canvas_->op(content_operator::v, {object{c2.x}, object{c2.y}, object{end.x}, object{end.y}});
+    brush_->op(content_operator::v, {object{c2.x}, object{c2.y}, object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -85,7 +85,7 @@ path& path::curve_to_replicated_end(geometry::point c1, geometry::point end)
 {
     ensure_open();
 
-    canvas_->op(content_operator::y, {object{c1.x}, object{c1.y}, object{end.x}, object{end.y}});
+    brush_->op(content_operator::y, {object{c1.x}, object{c1.y}, object{end.x}, object{end.y}});
     return *this;
 }
 
@@ -93,14 +93,13 @@ path& path::close()
 {
     ensure_open();
 
-    canvas_->op(content_operator::h);
+    brush_->op(content_operator::h);
     return *this;
 }
 
 path& path::add_rect(const geometry::rect& r)
 {
-    canvas_->op(content_operator::re,
-                {object{r.x}, object{r.y}, object{r.width}, object{r.height}});
+    brush_->op(content_operator::re, {object{r.x}, object{r.y}, object{r.width}, object{r.height}});
     open_ = true;
     return *this;
 }
@@ -248,83 +247,83 @@ path& path::add_arc(geometry::point center, double radius, double start_degrees,
 
 path& path::set_line_width(double width)
 {
-    canvas_->set_line_width(width);
+    brush_->set_line_width(width);
     return *this;
 }
 
 path& path::set_line_cap(line_cap cap)
 {
-    canvas_->set_line_cap(cap);
+    brush_->set_line_cap(cap);
     return *this;
 }
 
 path& path::set_line_join(line_join join)
 {
-    canvas_->set_line_join(join);
+    brush_->set_line_join(join);
     return *this;
 }
 
 path& path::set_miter_limit(double limit)
 {
-    canvas_->set_miter_limit(limit);
+    brush_->set_miter_limit(limit);
     return *this;
 }
 
 path& path::set_dash_pattern(std::span<const double> pattern, double phase)
 {
-    canvas_->set_dash_pattern(pattern, phase);
+    brush_->set_dash_pattern(pattern, phase);
     return *this;
 }
 
 path& path::set_dash_pattern(std::initializer_list<double> pattern, double phase)
 {
-    canvas_->set_dash_pattern(pattern, phase);
+    brush_->set_dash_pattern(pattern, phase);
     return *this;
 }
 
-canvas& path::paint(paint_style style)
+brush& path::paint(paint_style style)
 {
     ensure_open();
 
-    auto& painted = canvas_->op(painting_operator(style));
+    auto& painted = brush_->op(painting_operator(style));
     open_ = false;
 
     return painted;
 }
 
-canvas& path::stroke()
+brush& path::stroke()
 {
     return paint(paint_style::stroke);
 }
 
-canvas& path::fill(fill_rule rule)
+brush& path::fill(fill_rule rule)
 {
     return paint(rule == fill_rule::nonzero ? paint_style::fill : paint_style::fill_even_odd);
 }
 
-canvas& path::fill_and_stroke(fill_rule rule)
+brush& path::fill_and_stroke(fill_rule rule)
 {
     return paint(rule == fill_rule::nonzero ? paint_style::fill_stroke
                                             : paint_style::fill_stroke_even_odd);
 }
 
-canvas& path::clip(fill_rule rule)
+brush& path::clip(fill_rule rule)
 {
     ensure_open();
 
-    canvas_->op(rule == fill_rule::nonzero ? content_operator::W : content_operator::W_star);
+    brush_->op(rule == fill_rule::nonzero ? content_operator::W : content_operator::W_star);
 
-    auto& clipped = canvas_->op(content_operator::n);
+    auto& clipped = brush_->op(content_operator::n);
     open_ = false;
 
     return clipped;
 }
 
-canvas& path::discard()
+brush& path::discard()
 {
     ensure_open();
 
-    auto& discarded = canvas_->op(content_operator::n);
+    auto& discarded = brush_->op(content_operator::n);
     open_ = false;
 
     return discarded;
@@ -336,4 +335,4 @@ void path::ensure_open() const
         throw logic_exception{
             "Path operation requires an open path: call move_to() or add_rect() first"};
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

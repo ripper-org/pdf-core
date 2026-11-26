@@ -4,12 +4,12 @@
 #include <cstddef>
 #include <span>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 /// A device color value for the stroking or nonstroking color operators
 /// (ISO 32000-1 §8.6.4).
 ///
-/// The model determines which operator the canvas emits: `g`, `rg`, or `k`
+/// The model determines which operator the brush emits: `g`, `rg`, or `k`
 /// for nonstroking and `G`, `RG`, or `K` for stroking. Components are validated
 /// against the spec range `[0, 1]` when the value is created.
 ///
@@ -56,4 +56,4 @@ private:
     std::array<double, 4> components_{};
     std::size_t component_count_ = 0;
 };
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

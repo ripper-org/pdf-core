@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 /// Winding rule used when filling or clipping a path (ISO 32000-1 §8.5.3.1).
 enum class fill_rule
@@ -61,4 +61,4 @@ enum class rendering_intent
     saturation,
     perceptual
 };
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

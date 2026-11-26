@@ -1,7 +1,7 @@
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
-#include "ripper/pdf/core/document/canvas/path/path.hpp"
 #include "ripper/pdf/core/document/geometry/point.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
+#include "ripper/pdf/core/document/graphics/path/path.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object/stream_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -13,15 +13,15 @@
 #include <string_view>
 #include <type_traits>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 using test_support::content_of;
 using test_support::count_of;
 
-TEST_CASE("path builds and fills rectangles", "[canvas][path]")
+TEST_CASE("path builds and fills rectangles", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.fill_rect(geometry::rect{10.0, 20.0, 30.0, 40.0});
     painter.path().add_rect(geometry::rect{1.0, 2.0, 3.0, 4.0}).fill(fill_rule::even_odd);
@@ -29,10 +29,10 @@ TEST_CASE("path builds and fills rectangles", "[canvas][path]")
     REQUIRE(content_of(stream) == "10.0 20.0 30.0 40.0 re\nf\n1.0 2.0 3.0 4.0 re\nf*\n");
 }
 
-TEST_CASE("path emits curve operators", "[canvas][path]")
+TEST_CASE("path emits curve operators", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path()
         .move_to({1.0, 2.0})
@@ -50,7 +50,7 @@ TEST_CASE("path emits curve operators", "[canvas][path]")
                                   "S\n");
 }
 
-TEST_CASE("path maps paint styles to operators", "[canvas][path]")
+TEST_CASE("path maps paint styles to operators", "[brush][path]")
 {
     struct paint_case
     {
@@ -72,7 +72,7 @@ TEST_CASE("path maps paint styles to operators", "[canvas][path]")
     for (const auto& [style, expected] : cases)
     {
         stream_object stream;
-        canvas painter{stream};
+        brush painter{stream};
 
         painter.path().move_to({0.0, 0.0}).paint(style);
 
@@ -80,10 +80,10 @@ TEST_CASE("path maps paint styles to operators", "[canvas][path]")
     }
 }
 
-TEST_CASE("path clips and discards paths", "[canvas][path]")
+TEST_CASE("path clips and discards paths", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path().add_rect({0.0, 0.0, 10.0, 10.0}).clip();
     painter.path().add_rect({1.0, 1.0, 2.0, 2.0}).clip(fill_rule::even_odd);
@@ -94,10 +94,10 @@ TEST_CASE("path clips and discards paths", "[canvas][path]")
                                   "0.0 0.0 m\n1.0 1.0 l\nn\n");
 }
 
-TEST_CASE("path rejects segments without an open path", "[canvas][path]")
+TEST_CASE("path rejects segments without an open path", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     REQUIRE_THROWS_AS(painter.path().line_to({1.0, 1.0}), logic_exception);
     REQUIRE_THROWS_AS(painter.path().curve_to({1.0, 1.0}, {2.0, 2.0}, {3.0, 3.0}), logic_exception);
@@ -108,10 +108,10 @@ TEST_CASE("path rejects segments without an open path", "[canvas][path]")
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("path views do not share path state", "[canvas][path]")
+TEST_CASE("path views do not share path state", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     auto first = painter.path();
     first.move_to({0.0, 0.0});
@@ -123,10 +123,10 @@ TEST_CASE("path views do not share path state", "[canvas][path]")
     REQUIRE(content_of(stream) == "0.0 0.0 m\nS\n");
 }
 
-TEST_CASE("path ignores path operators emitted via op", "[canvas][path]")
+TEST_CASE("path ignores path operators emitted via op", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.op("m", {object{std::int64_t{0}}, object{std::int64_t{0}}});
 
@@ -134,10 +134,10 @@ TEST_CASE("path ignores path operators emitted via op", "[canvas][path]")
     REQUIRE(content_of(stream) == "0 0 m\n");
 }
 
-TEST_CASE("a path view can start more than one path", "[canvas][path]")
+TEST_CASE("a path view can start more than one path", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     auto target = painter.path();
     target.move_to({0.0, 0.0}).line_to({1.0, 1.0}).stroke();
@@ -146,10 +146,10 @@ TEST_CASE("a path view can start more than one path", "[canvas][path]")
     REQUIRE(content_of(stream) == "0.0 0.0 m\n1.0 1.0 l\nS\n2.0 2.0 m\n3.0 3.0 l\nS\n");
 }
 
-TEST_CASE("path adds polylines and polygons", "[canvas][path]")
+TEST_CASE("path adds polylines and polygons", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path().add_polyline({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}).stroke();
 
@@ -161,10 +161,10 @@ TEST_CASE("path adds polylines and polygons", "[canvas][path]")
                                   "0.0 0.0 m\n1.0 0.0 l\n0.0 1.0 l\nh\nf\n");
 }
 
-TEST_CASE("path approximates circles and ellipses with four curves", "[canvas][path]")
+TEST_CASE("path approximates circles and ellipses with four curves", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path().add_circle({0.0, 0.0}, 1.0).stroke();
 
@@ -181,10 +181,10 @@ TEST_CASE("path approximates circles and ellipses with four curves", "[canvas][p
     REQUIRE(count_of(content, "\nh\n") == 2);
 }
 
-TEST_CASE("path adds rounded rectangles", "[canvas][path]")
+TEST_CASE("path adds rounded rectangles", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path().add_rounded_rect({0.0, 0.0, 10.0, 10.0}, 0.0).stroke();
 
@@ -198,10 +198,10 @@ TEST_CASE("path adds rounded rectangles", "[canvas][path]")
     REQUIRE(content.ends_with("h\nS\n"));
 }
 
-TEST_CASE("path adds elliptical arcs", "[canvas][path]")
+TEST_CASE("path adds elliptical arcs", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.path().add_arc({0.0, 0.0}, 1.0, 0.0, 90.0).stroke();
 
@@ -218,10 +218,10 @@ TEST_CASE("path adds elliptical arcs", "[canvas][path]")
     REQUIRE(count_of(content, " c\n") == 1 + 2 + 4 + 1);
 }
 
-TEST_CASE("path geometry rejects invalid input", "[canvas][path]")
+TEST_CASE("path geometry rejects invalid input", "[brush][path]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     REQUIRE_THROWS_AS(painter.path().add_polyline({{0.0, 0.0}}), logic_exception);
     REQUIRE_THROWS_AS(painter.path().add_polygon({{0.0, 0.0}, {1.0, 1.0}}), logic_exception);
@@ -233,9 +233,9 @@ TEST_CASE("path geometry rejects invalid input", "[canvas][path]")
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("path is a non-copyable view", "[canvas][path]")
+TEST_CASE("path is a non-copyable view", "[brush][path]")
 {
     STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<path>);
     STATIC_REQUIRE_FALSE(std::is_move_constructible_v<path>);
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

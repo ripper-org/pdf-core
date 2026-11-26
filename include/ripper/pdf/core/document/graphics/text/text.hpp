@@ -9,9 +9,9 @@
 #include <string_view>
 #include <variant>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
-class canvas;
+class brush;
 
 /// One entry of a `TJ` array: either a string to show or a displacement in
 /// thousandths of a unit of text space (ISO 32000-1 §9.4.3).
@@ -19,8 +19,8 @@ using text_show_item = std::variant<std::string, double>;
 
 /// Fluent view over a text object (ISO 32000-1 §9.4).
 ///
-/// Obtained from `canvas::text()`, which emits `BT`; `end()` emits `ET` and
-/// returns the owning canvas. Text objects cannot nest, so opening a second one
+/// Obtained from `brush::text()`, which emits `BT`; `end()` emits `ET` and
+/// returns the owning brush. Text objects cannot nest, so opening a second one
 /// before ending the first raises `logic_exception`.
 ///
 /// ```cpp
@@ -95,20 +95,20 @@ public:
     text& show_next_line(double word_spacing, double character_spacing,
                          std::string_view encoded_text);
 
-    /// End the text object (`ET`) and return the owning canvas.
+    /// End the text object (`ET`) and return the owning brush.
     ///
     /// @throws logic_exception if the text object was already ended.
-    canvas& end();
+    brush& end();
 
 private:
-    friend class canvas;
+    friend class brush;
 
-    explicit text(canvas& target) noexcept : canvas_{&target} {}
+    explicit text(brush& target) noexcept : brush_{&target} {}
 
     /// @throws logic_exception if the text object has already been ended.
     void ensure_active() const;
 
-    canvas* canvas_;
+    brush* brush_;
     bool ended_ = false;
 };
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

@@ -1,7 +1,7 @@
 #include "ripper/pdf/core/document.hpp"
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
 #include "ripper/pdf/core/document/graphics/color.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object/stream_object.hpp"
@@ -16,7 +16,7 @@
 #include <string>
 #include <type_traits>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 using test_support::content_of;
 
@@ -38,28 +38,28 @@ public:
     }
 
 private:
-    test_fixture::scoped_temp_file file_{"pdf_ripper_core_canvas_test.pdf"};
+    test_fixture::scoped_temp_file file_{"pdf_ripper_core_brush_test.pdf"};
     document doc_;
 };
 } // namespace
 
-TEST_CASE("canvas writes operators in operand-then-operator order", "[canvas]")
+TEST_CASE("brush writes operators in operand-then-operator order", "[brush]")
 {
     stream_object stream;
 
-    canvas{stream}.op("cm", {object{std::int64_t{1}}, object{std::int64_t{0}},
-                             object{std::int64_t{0}}, object{std::int64_t{1}},
-                             object{std::int64_t{10}}, object{std::int64_t{20}}});
+    brush{stream}.op("cm",
+                     {object{std::int64_t{1}}, object{std::int64_t{0}}, object{std::int64_t{0}},
+                      object{std::int64_t{1}}, object{std::int64_t{10}}, object{std::int64_t{20}}});
 
     REQUIRE(content_of(stream) == "1 0 0 1 10 20 cm\n");
     REQUIRE(stream.dictionary().get_number("Length")->as_integer() ==
             static_cast<std::int64_t>(content_of(stream).size()));
 }
 
-TEST_CASE("canvas tracks graphics state depth", "[canvas]")
+TEST_CASE("brush tracks graphics state depth", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     REQUIRE(painter.state_depth() == 0);
 
@@ -73,10 +73,10 @@ TEST_CASE("canvas tracks graphics state depth", "[canvas]")
     REQUIRE(content_of(stream) == "q\nQ\n");
 }
 
-TEST_CASE("canvas emits transformation operators", "[canvas]")
+TEST_CASE("brush emits transformation operators", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.translate(5.0, 7.0);
     painter.scale(2.0, 3.0);
@@ -86,12 +86,12 @@ TEST_CASE("canvas emits transformation operators", "[canvas]")
             "1.0 0.0 0.0 1.0 5.0 7.0 cm\n2.0 0.0 0.0 3.0 0.0 0.0 cm\n1.0 0.0 0.0 1.0 0.0 0.0 cm\n");
 }
 
-TEST_CASE("page canvas appends a stream to /Contents", "[canvas][page][write]")
+TEST_CASE("page brush appends a stream to /Contents", "[brush][page][write]")
 {
     writer_document fixture;
     auto target = fixture.first_page();
 
-    auto painter = target.canvas(canvas_mode::append);
+    auto painter = target.brush(brush_mode::append);
     painter.rotate(0.0);
 
     auto contents = target.content();
@@ -103,13 +103,13 @@ TEST_CASE("page canvas appends a stream to /Contents", "[canvas][page][write]")
     REQUIRE(content_of(*streams.front().stream()) == "1.0 0.0 0.0 1.0 0.0 0.0 cm\n");
 }
 
-TEST_CASE("page canvas prepend and replace order the content streams", "[canvas][page][write]")
+TEST_CASE("page brush prepend and replace order the content streams", "[brush][page][write]")
 {
     writer_document fixture;
     auto target = fixture.first_page();
 
-    target.canvas(canvas_mode::append).translate(1.0, 1.0);
-    target.canvas(canvas_mode::prepend).translate(2.0, 2.0);
+    target.brush(brush_mode::append).translate(1.0, 1.0);
+    target.brush(brush_mode::prepend).translate(2.0, 2.0);
 
     auto contents = target.content();
     REQUIRE(contents.is_array());
@@ -117,7 +117,7 @@ TEST_CASE("page canvas prepend and replace order the content streams", "[canvas]
     REQUIRE(content_of(*contents.at(0).stream()) == "1.0 0.0 0.0 1.0 2.0 2.0 cm\n");
     REQUIRE(content_of(*contents.at(1).stream()) == "1.0 0.0 0.0 1.0 1.0 1.0 cm\n");
 
-    target.canvas(canvas_mode::replace).translate(3.0, 3.0);
+    target.brush(brush_mode::replace).translate(3.0, 3.0);
 
     auto replaced = target.content();
     REQUIRE(replaced.size() == 1);
@@ -125,10 +125,10 @@ TEST_CASE("page canvas prepend and replace order the content streams", "[canvas]
     REQUIRE(content_of(*replaced.at(0).stream()) == "1.0 0.0 0.0 1.0 3.0 3.0 cm\n");
 }
 
-TEST_CASE("canvas chains mutating calls", "[canvas]")
+TEST_CASE("brush chains mutating calls", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.save()
         .translate(1.0, 2.0)
@@ -157,10 +157,10 @@ TEST_CASE("canvas chains mutating calls", "[canvas]")
     REQUIRE(painter.state_depth() == 0);
 }
 
-TEST_CASE("canvas emits line state operators", "[canvas]")
+TEST_CASE("brush emits line state operators", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.set_line_width(0.5)
         .set_line_cap(line_cap::square)
@@ -171,10 +171,10 @@ TEST_CASE("canvas emits line state operators", "[canvas]")
     REQUIRE(content_of(stream) == "0.5 w\n2 J\n0 j\n3.0 M\n[3.0 1.0] 0.0 d\n");
 }
 
-TEST_CASE("canvas rejects invalid line state", "[canvas]")
+TEST_CASE("brush rejects invalid line state", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     REQUIRE_THROWS_AS(painter.set_line_width(-1.0), logic_exception);
     REQUIRE_THROWS_AS(painter.set_miter_limit(0.5), logic_exception);
@@ -183,10 +183,10 @@ TEST_CASE("canvas rejects invalid line state", "[canvas]")
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("canvas emits device color operators", "[canvas][color]")
+TEST_CASE("brush emits device color operators", "[brush][color]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.set_fill_color(color::gray(0.5))
         .set_stroke_color(color::rgb(1.0, 0.0, 0.0))
@@ -196,10 +196,10 @@ TEST_CASE("canvas emits device color operators", "[canvas][color]")
     REQUIRE(content_of(stream) == "0.5 g\n1.0 0.0 0.0 RG\n0.0 0.0 0.0 1.0 k\n0.25 G\n");
 }
 
-TEST_CASE("canvas emits color space and pattern operators", "[canvas][color]")
+TEST_CASE("brush emits color space and pattern operators", "[brush][color]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.set_fill_color_space("Pattern")
         .set_stroke_color_space("DeviceCMYK")
@@ -216,10 +216,10 @@ TEST_CASE("canvas emits color space and pattern operators", "[canvas][color]")
                                   "0.25 /P1 SCN\n");
 }
 
-TEST_CASE("canvas emits graphics state and named resource operators", "[canvas][graphics]")
+TEST_CASE("brush emits graphics state and named resource operators", "[brush][graphics]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.set_rendering_intent(rendering_intent::relative_colorimetric)
         .set_flatness(0.5)
@@ -237,10 +237,10 @@ TEST_CASE("canvas emits graphics state and named resource operators", "[canvas][
     REQUIRE_THROWS_AS(painter.set_flatness(101.0), logic_exception);
 }
 
-TEST_CASE("canvas emits marked content and compatibility operators", "[canvas][marked]")
+TEST_CASE("brush emits marked content and compatibility operators", "[brush][marked]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.mark_point("Tag")
         .begin_marked_content("Span")
@@ -276,20 +276,20 @@ TEST_CASE("canvas emits marked content and compatibility operators", "[canvas][m
                                   "/Span <<\n/ActualText (x)\n>> BDC\n");
 }
 
-TEST_CASE("canvas rejects unbalanced marked content and compatibility", "[canvas][marked]")
+TEST_CASE("brush rejects unbalanced marked content and compatibility", "[brush][marked]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     REQUIRE_THROWS_AS(painter.end_marked_content(), logic_exception);
     REQUIRE_THROWS_AS(painter.end_compatibility(), logic_exception);
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("canvas draws inline images", "[canvas]")
+TEST_CASE("brush draws inline images", "[brush]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     inline_image image;
     image.dictionary.set("W", object{std::int64_t{1}});
@@ -306,9 +306,9 @@ TEST_CASE("canvas draws inline images", "[canvas]")
     REQUIRE(content.ends_with("\nEI\n"));
 }
 
-TEST_CASE("canvas is a non-copyable view", "[canvas]")
+TEST_CASE("brush is a non-copyable view", "[brush]")
 {
-    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<canvas>);
-    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<canvas>);
+    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<brush>);
+    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<brush>);
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

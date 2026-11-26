@@ -4,7 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 TEST_CASE("color exposes its model and components", "[color]")
 {
@@ -36,4 +36,4 @@ TEST_CASE("color validates device components", "[color]")
     REQUIRE_THROWS_AS(color::rgb(0.0, 0.0, std::numeric_limits<double>::infinity()),
                       logic_exception);
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics

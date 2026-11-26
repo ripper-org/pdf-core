@@ -1,11 +1,11 @@
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 
 #include "ripper/pdf/core/document.hpp"
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page_size.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page_tree_node.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object_manager.hpp"
@@ -174,7 +174,7 @@ page_contents page::content()
     return object_manager::parse_page_contents(*this);
 }
 
-canvas page::canvas(canvas_mode mode)
+graphics::brush page::brush(graphics::brush_mode mode)
 {
     rebind_to_active_revision();
 
@@ -187,15 +187,15 @@ canvas page::canvas(canvas_mode mode)
 
     switch (mode)
     {
-        case canvas_mode::append:
+        case graphics::brush_mode::append:
             contents.append(stream);
             break;
 
-        case canvas_mode::prepend:
+        case graphics::brush_mode::prepend:
             contents.insert(0, stream);
             break;
 
-        case canvas_mode::replace:
+        case graphics::brush_mode::replace:
             contents.clear();
             contents.append(stream);
             break;
@@ -205,6 +205,6 @@ canvas page::canvas(canvas_mode mode)
     if (stream_obj == nullptr)
         throw logic_exception{"Newly created content stream is not a stream"};
 
-    return ripper::pdf::core::canvas{*stream_obj};
+    return graphics::brush{*stream_obj};
 }
 } // namespace ripper::pdf::core

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/rotation.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
@@ -56,21 +56,21 @@ public:
     /// view, with is_array() reporting which form the file used. A page without
     /// a /Contents entry gets an empty array created on first access and is
     /// reported as empty; no content stream is allocated until content is
-    /// actually written (for example through `canvas()`).
+    /// actually written (for example through `brush()`).
     ///
     /// @throws logic_exception if the page is not a dictionary or the new slot
     ///         cannot be created.
     [[nodiscard]] page_contents content();
 
-    /// Rebinds the page and returns a canvas over a new content stream.
+    /// Rebinds the page and returns a brush over a new content stream.
     ///
-    /// `canvas_mode::append` adds the stream at the end of /Contents,
+    /// `brush_mode::append` adds the stream at the end of /Contents,
     /// `prepend` at the beginning, and `replace` discards the existing /Contents
     /// and installs the new stream as the only one.
     ///
     /// @throws logic_exception if the page is not a dictionary or the stream
     ///         cannot be committed.
-    [[nodiscard]] canvas canvas(canvas_mode mode = canvas_mode::append);
+    [[nodiscard]] graphics::brush brush(graphics::brush_mode mode = graphics::brush_mode::append);
 
     /// Returns the effective /MediaBox of this page, inheriting from ancestors.
     ///

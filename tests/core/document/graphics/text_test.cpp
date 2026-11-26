@@ -1,6 +1,6 @@
-#include "ripper/pdf/core/document/canvas/canvas.hpp"
-#include "ripper/pdf/core/document/canvas/text/text.hpp"
 #include "ripper/pdf/core/document/geometry/matrix.hpp"
+#include "ripper/pdf/core/document/graphics/brush/brush.hpp"
+#include "ripper/pdf/core/document/graphics/text/text.hpp"
 #include "ripper/pdf/core/document/object/stream_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "test_support.hpp"
@@ -9,14 +9,14 @@
 #include <string>
 #include <type_traits>
 
-namespace ripper::pdf::core
+namespace ripper::pdf::core::graphics
 {
 using test_support::content_of;
 
-TEST_CASE("canvas emits text state operators", "[canvas][text]")
+TEST_CASE("brush emits text state operators", "[brush][text]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.set_font("F1", 12.0)
         .set_character_spacing(0.5)
@@ -35,10 +35,10 @@ TEST_CASE("canvas emits text state operators", "[canvas][text]")
                                   "2 Tr\n");
 }
 
-TEST_CASE("text object emits positioning and showing operators", "[canvas][text]")
+TEST_CASE("text object emits positioning and showing operators", "[brush][text]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     auto& ended = painter.text()
                       .set_font("F1", 12.0)
@@ -63,10 +63,10 @@ TEST_CASE("text object emits positioning and showing operators", "[canvas][text]
                                   "ET\n");
 }
 
-TEST_CASE("text object emits quote and array showing operators", "[canvas][text]")
+TEST_CASE("text object emits quote and array showing operators", "[brush][text]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     painter.text().show_next_line(1.0, 2.0, "X").end();
 
@@ -78,10 +78,10 @@ TEST_CASE("text object emits quote and array showing operators", "[canvas][text]
                                   "BT\n[(A) -120.0 (V)] TJ\nET\n");
 }
 
-TEST_CASE("text objects cannot nest or be reused", "[canvas][text]")
+TEST_CASE("text objects cannot nest or be reused", "[brush][text]")
 {
     stream_object stream;
-    canvas painter{stream};
+    brush painter{stream};
 
     auto first = painter.text();
 
@@ -97,9 +97,9 @@ TEST_CASE("text objects cannot nest or be reused", "[canvas][text]")
     REQUIRE(content_of(stream) == "BT\n(x) Tj\nET\n");
 }
 
-TEST_CASE("text is a non-copyable view", "[canvas][text]")
+TEST_CASE("text is a non-copyable view", "[brush][text]")
 {
     STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<text>);
     STATIC_REQUIRE_FALSE(std::is_move_constructible_v<text>);
 }
-} // namespace ripper::pdf::core
+} // namespace ripper::pdf::core::graphics
