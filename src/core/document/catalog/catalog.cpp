@@ -2,12 +2,12 @@
 
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 namespace ripper::pdf::core
 {
-catalog::catalog(indirect_object& obj) noexcept : object_view(obj) {}
+catalog::catalog(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 class pages catalog::pages()
 {

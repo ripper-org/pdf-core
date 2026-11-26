@@ -9,7 +9,7 @@ namespace ripper::pdf::core
 ///
 /// Non-owning wrapper around an `indirect_object` stored in the cross-reference table.
 /// Ownership remains with the `cross_reference_entry` that holds the indirect_object.
-class catalog : public object_view
+class catalog : public indirect_object_view
 {
 public:
     /// Construct a catalog view over an existing indirect_object.

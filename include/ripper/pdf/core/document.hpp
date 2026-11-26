@@ -244,7 +244,7 @@ public:
     ///
     /// After calling this method, existing objects can be cloned into the new
     /// revision using `resolve_object_to_active_revision()` or by calling
-    /// `rebind_to_active_revision()` on any instance of `object_view`. New
+    /// `rebind_to_active_revision()` on any instance of `indirect_object_view`. New
     /// objects can be added by calling `reserve()` on the active section, then
     /// constructing the object with the returned reference and `commit()`-ing it.
     ///

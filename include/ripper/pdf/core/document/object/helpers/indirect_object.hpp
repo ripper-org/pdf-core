@@ -14,7 +14,7 @@ namespace ripper::pdf::core
 ///
 /// `object_identity` knows *which* object this is; `indirect_object` adds the value it carries.
 ///
-/// The typed views (`catalog`, `pages`, `page`, `objstm`, …) are non-owning `object_view`
+/// The typed views (`catalog`, `pages`, `page`, `objstm`, …) are non-owning `indirect_object_view`
 /// wrappers over an `indirect_object&`, not subclasses of this class.
 ///
 /// `indirect_object` owns its content object; the identity is held by value.

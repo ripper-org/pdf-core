@@ -5,7 +5,7 @@
 #include "ripper/pdf/core/document/catalog/pages/page/rotation.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
 #include <cstdint>
 
@@ -13,7 +13,7 @@ namespace ripper::pdf::core
 {
 class pages;
 
-class page : public object_view
+class page : public indirect_object_view
 {
 public:
     explicit page(indirect_object& obj) noexcept;

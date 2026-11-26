@@ -29,7 +29,7 @@ namespace
 }
 } // namespace
 
-page::page(indirect_object& obj) noexcept : object_view(obj) {}
+page::page(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 geometry::rect page::media_box()
 {

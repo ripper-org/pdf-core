@@ -72,7 +72,7 @@ void bump_counts(page_tree_node node, std::int64_t delta)
 }
 } // namespace
 
-pages::pages(indirect_object& obj) noexcept : object_view(obj) {}
+pages::pages(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 std::uint64_t pages::count() const
 {

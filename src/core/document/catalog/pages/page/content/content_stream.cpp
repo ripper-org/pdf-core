@@ -7,7 +7,7 @@
 
 namespace ripper::pdf::core
 {
-content_stream::content_stream(indirect_object& obj) noexcept : object_view(obj) {}
+content_stream::content_stream(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 stream_object* content_stream::stream() noexcept
 {

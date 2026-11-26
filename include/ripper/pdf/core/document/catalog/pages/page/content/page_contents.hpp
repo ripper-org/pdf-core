@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/pages/page/content/content_stream.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
 #include <cstddef>
 #include <vector>
@@ -27,7 +27,7 @@ class object;
 /// Mutation happens in place on the page dictionary. The page must already be
 /// bound to the active revision (`rebind_to_active_revision()`), otherwise the
 /// change is not captured by an incremental save.
-class page_contents : public object_view
+class page_contents : public indirect_object_view
 {
 public:
     /// @param page_obj the page's indirect_object (must hold a dictionary).

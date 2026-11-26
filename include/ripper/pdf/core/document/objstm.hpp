@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -18,8 +18,8 @@ class document;
 /// dictionary and decoded payload.
 ///
 /// Follows the same pattern as `catalog`, `pages`, and `page`. Inherits from
-/// `object_view` and provides domain-specific methods over the stream content.
-class objstm : public object_view
+/// `indirect_object_view` and provides domain-specific methods over the stream content.
+class objstm : public indirect_object_view
 {
 public:
     /// The byte range of an object within the decoded stream.

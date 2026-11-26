@@ -6,12 +6,24 @@
 
 namespace ripper::pdf::core
 {
-/// Non-owning, type-erased view over a PDF indirect_object.
-/// Provides common forwarding helpers for all typed wrappers.
-class object_view
+/// Non-owning, untyped view over a PDF indirect object.
+///
+/// This is the base of the high-level view API for PDF entities that have their
+/// own identity in the cross-reference table (`catalog`, `pages`, `page`,
+/// `content_stream`, `objstm`, …). Because the wrapped value is an indirect
+/// object, the view can be rebound to another object and, more importantly, to
+/// that object's clone in the active revision.
+///
+/// Values that live *inside* another indirect object — a dictionary entry or an
+/// array element — have no identity of their own and cannot be rebound
+/// independently. Those are represented by `direct_object_view` instead; the
+/// two view types are deliberately separate.
+///
+/// The wrapped `indirect_object` must outlive the view.
+class indirect_object_view
 {
 public:
-    explicit object_view(indirect_object& obj) noexcept;
+    explicit indirect_object_view(indirect_object& obj) noexcept;
 
     /// Returns a reference to the underlying indirect_object.
     [[nodiscard]] indirect_object& obj() noexcept;

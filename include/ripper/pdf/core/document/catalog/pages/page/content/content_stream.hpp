@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/pages/page/content/instruction_stream.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
 namespace ripper::pdf::core
 {
@@ -17,7 +17,7 @@ class stream_object;
 /// Non-owning wrapper around an `indirect_object` stored in the cross-reference
 /// table. Ownership remains with the `cross_reference_entry` that holds the
 /// indirect_object.
-class content_stream : public object_view
+class content_stream : public indirect_object_view
 {
 public:
     explicit content_stream(indirect_object& obj) noexcept;

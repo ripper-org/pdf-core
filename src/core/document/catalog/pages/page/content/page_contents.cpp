@@ -14,7 +14,7 @@
 
 namespace ripper::pdf::core
 {
-page_contents::page_contents(indirect_object& page_obj) noexcept : object_view(page_obj) {}
+page_contents::page_contents(indirect_object& page_obj) noexcept : indirect_object_view(page_obj) {}
 
 bool page_contents::empty() const
 {

@@ -14,7 +14,7 @@
 namespace ripper::pdf::core
 {
 
-objstm::objstm(indirect_object& obj) noexcept : object_view(obj) {}
+objstm::objstm(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 std::uint32_t objstm::count() const
 {

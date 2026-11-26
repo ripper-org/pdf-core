@@ -2,7 +2,7 @@
 
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
 
 #include <cstdint>
@@ -31,7 +31,7 @@ namespace ripper::pdf::core
 ///   if (node.is_leaf()) { auto pg = *node.as_page(); ... }
 ///   for (auto kid : node.children()) { ... }
 ///   if (auto par = node.parent()) { par->remove_child(node.obj().identity().reference()); }
-class page_tree_node : public object_view
+class page_tree_node : public indirect_object_view
 {
 public:
     explicit page_tree_node(indirect_object& obj) noexcept;

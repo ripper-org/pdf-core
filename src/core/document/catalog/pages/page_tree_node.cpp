@@ -14,7 +14,7 @@
 
 namespace ripper::pdf::core
 {
-page_tree_node::page_tree_node(indirect_object& obj) noexcept : object_view(obj) {}
+page_tree_node::page_tree_node(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
 bool page_tree_node::is_leaf() const
 {

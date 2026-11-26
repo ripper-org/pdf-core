@@ -3,7 +3,7 @@
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page_size.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
-#include "ripper/pdf/core/document/object/helpers/object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
 #include <cstdint>
 #include <functional>
@@ -22,7 +22,7 @@ class object;
 /// Page indices used by this class are relative to this node's subtree, so a root
 /// `/Pages` view works in document order while a nested node counts only its own
 /// descendants.
-class pages : public object_view
+class pages : public indirect_object_view
 {
 public:
     explicit pages(indirect_object& obj) noexcept;
