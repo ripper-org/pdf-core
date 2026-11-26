@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/pages/page/content/content_stream.hpp"
-#include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
+#include "ripper/pdf/core/document/object/helpers/direct_object_view.hpp"
 
 #include <cstddef>
 #include <vector>
@@ -9,29 +9,42 @@
 namespace ripper::pdf::core
 {
 class array_object;
-class dictionary_object;
 class indirect_reference;
 class object;
 
 /// The /Contents entry of a page (ISO 32000-1 §7.7.3.3).
 ///
-/// Facet of a `page`: a non-owning view over the page's indirect_object that
-/// exposes its /Contents entry as a single-or-multiple stream container, with
-/// proxies for the common structural edits (append, insert, replace, remove).
+/// Facet of a `page`: a non-owning view over the page's /Contents *slot*. The
+/// slot may hold null, a single indirect stream reference, or an array of
+/// indirect stream references. All forms are exposed through the same API;
+/// `is_array()` reports which form the document actually uses and the mutators
+/// promote a single reference to an array when a second stream is added.
 ///
-/// /Contents is either absent/null, a single indirect stream reference, or an
-/// array of indirect stream references. All forms are exposed through the same
-/// API; `is_array()` reports which form the document actually uses and the
-/// mutators promote a single reference to an array when a second stream is added.
+/// Because the view targets the slot rather than the current value, replacing
+/// the value (for example promoting a reference to an array) does not
+/// invalidate it.
 ///
 /// Mutation happens in place on the page dictionary. The page must already be
 /// bound to the active revision (`rebind_to_active_revision()`), otherwise the
-/// change is not captured by an incremental save.
-class page_contents : public indirect_object_view
+/// change is not captured by an incremental save. This view cannot rebind
+/// itself; obtain a fresh one from `page::content()` after rebinding.
+///
+/// The owning page's indirect object must outlive the view.
+class page_contents : public direct_object_view
 {
 public:
+    /// @param contents the page's /Contents slot.
     /// @param page_obj the page's indirect_object (must hold a dictionary).
-    explicit page_contents(indirect_object& page_obj) noexcept;
+    page_contents(object& contents, indirect_object& page_obj) noexcept;
+
+    /// Ensures the page has a /Contents slot and views it.
+    ///
+    /// An absent /Contents entry is created as a null direct object; it does
+    /// not allocate a content stream.
+    ///
+    /// @param page_obj the page's indirect_object (must hold a dictionary).
+    /// @throws logic_exception if the page object is not a dictionary.
+    explicit page_contents(indirect_object& page_obj);
 
     /// Returns `true` if /Contents is absent, null or an empty array.
     [[nodiscard]] bool empty() const;
@@ -94,18 +107,8 @@ public:
     void clear();
 
 private:
-    /// Returns the /Contents entry, or `nullptr` if absent or the page object
-    /// is not a dictionary.
-    [[nodiscard]] class object* contents();
-    [[nodiscard]] const class object* contents() const;
-
-    /// Returns the page dictionary.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary.
-    [[nodiscard]] class dictionary_object& dictionary();
-
     /// Returns /Contents as an array, promoting a single reference or a null
-    /// value in place and creating the entry when absent.
+    /// value in place.
     [[nodiscard]] class array_object& ensure_array();
 
     /// Returns the reference stored at `index`, validating the entry shape.

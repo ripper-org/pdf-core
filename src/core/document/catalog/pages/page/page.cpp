@@ -184,10 +184,10 @@ canvas page::canvas(canvas_mode mode)
 
     auto& doc = obj().identity().owner();
 
-    page_contents contents{obj()};
-
     // Allocate before touching /Contents so a failed commit leaves the page intact.
     auto stream = object_manager::create_content_stream(doc);
+
+    page_contents contents{obj()};
 
     switch (mode)
     {

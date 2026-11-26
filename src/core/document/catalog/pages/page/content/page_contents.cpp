@@ -2,7 +2,6 @@
 
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/object/array_object.hpp"
-#include "ripper/pdf/core/document/object/dictionary_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -14,36 +13,60 @@
 
 namespace ripper::pdf::core
 {
-page_contents::page_contents(indirect_object& page_obj) noexcept : indirect_object_view(page_obj) {}
+namespace
+{
+/// Returns the page's /Contents slot, creating a null entry when absent.
+[[nodiscard]] object& ensure_contents_slot(indirect_object& page_obj)
+{
+    auto* dict = page_obj.content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object is not a dictionary"};
+
+    if (auto* entry = dict->get("Contents"))
+        return *entry;
+
+    dict->set("Contents", object{});
+
+    return *dict->get("Contents");
+}
+} // namespace
+
+page_contents::page_contents(object& contents, indirect_object& page_obj) noexcept
+    : direct_object_view(contents, page_obj)
+{
+}
+
+page_contents::page_contents(indirect_object& page_obj)
+    : page_contents{ensure_contents_slot(page_obj), page_obj}
+{
+}
 
 bool page_contents::empty() const
 {
-    const auto* entry = contents();
-    if (entry == nullptr || entry->is_null())
+    const auto& entry = value();
+    if (entry.is_null())
         return true;
 
-    const auto* arr = entry->as_array();
+    const auto* arr = entry.as_array();
 
     return arr != nullptr && arr->empty();
 }
 
 bool page_contents::is_array() const
 {
-    const auto* entry = contents();
-
-    return entry != nullptr && entry->is_array();
+    return value().is_array();
 }
 
 std::size_t page_contents::size() const
 {
-    const auto* entry = contents();
-    if (entry == nullptr || entry->is_null())
+    const auto& entry = value();
+    if (entry.is_null())
         return 0;
 
-    if (entry->as_indirect_reference() != nullptr)
+    if (entry.as_indirect_reference() != nullptr)
         return 1;
 
-    if (const auto* arr = entry->as_array())
+    if (const auto* arr = entry.as_array())
         return arr->size();
 
     throw logic_exception{
@@ -54,7 +77,7 @@ content_stream page_contents::at(std::size_t index) const
 {
     const auto& ref = reference_at(index);
 
-    auto& doc = obj().identity().owner();
+    auto& doc = document();
     auto* resolved = doc.resolve_object(ref);
     if (resolved == nullptr || resolved->content().as_stream() == nullptr)
         throw logic_exception{"Page /Contents reference does not point to a stream"};
@@ -79,34 +102,27 @@ void page_contents::append(content_stream stream)
 {
     const auto ref = stream.obj().identity().reference();
 
-    auto& dict = dictionary();
-    auto* entry = dict.get("Contents");
+    auto& entry = value();
 
-    // Absent or null /Contents: a lone reference is the canonical single form.
-    if (entry == nullptr)
+    // Null /Contents: a lone reference is the canonical single form.
+    if (entry.is_null())
     {
-        dict.set("Contents", object{ref});
+        entry = object{ref};
         return;
     }
 
-    if (entry->is_null())
-    {
-        *entry = object{ref};
-        return;
-    }
-
-    if (auto* arr = entry->as_array())
+    if (auto* arr = entry.as_array())
     {
         arr->push_back(object{ref});
         return;
     }
 
-    if (const auto* existing = entry->as_indirect_reference())
+    if (const auto* existing = entry.as_indirect_reference())
     {
         array_object promoted;
         promoted.push_back(object{*existing});
         promoted.push_back(object{ref});
-        *entry = object{std::move(promoted)};
+        entry = object{std::move(promoted)};
         return;
     }
 
@@ -137,21 +153,20 @@ void page_contents::replace(std::size_t index, content_stream stream)
 {
     const auto ref = stream.obj().identity().reference();
 
-    auto& dict = dictionary();
-    auto* entry = dict.get("Contents");
+    auto& entry = value();
 
-    if (entry == nullptr || entry->is_null() || index >= size())
+    if (entry.is_null() || index >= size())
         throw std::out_of_range{"Page /Contents index out of range"};
 
-    if (auto* arr = entry->as_array())
+    if (auto* arr = entry.as_array())
     {
         arr->items()[index] = object{ref};
         return;
     }
 
-    if (entry->as_indirect_reference() != nullptr)
+    if (entry.as_indirect_reference() != nullptr)
     {
-        *entry = object{ref};
+        entry = object{ref};
         return;
     }
 
@@ -161,22 +176,21 @@ void page_contents::replace(std::size_t index, content_stream stream)
 
 void page_contents::remove(std::size_t index)
 {
-    auto& dict = dictionary();
-    auto* entry = dict.get("Contents");
+    auto& entry = value();
 
-    if (entry == nullptr || entry->is_null())
+    if (entry.is_null())
         throw std::out_of_range{"Page /Contents is empty"};
 
-    if (entry->as_indirect_reference() != nullptr)
+    if (entry.as_indirect_reference() != nullptr)
     {
         if (index != 0)
             throw std::out_of_range{"Page /Contents index out of range"};
 
-        *entry = object{};
+        entry = object{};
         return;
     }
 
-    auto* arr = entry->as_array();
+    auto* arr = entry.as_array();
     if (arr == nullptr)
         throw logic_exception{
             "Page /Contents must be a stream reference or an array of stream references"};
@@ -189,68 +203,32 @@ void page_contents::remove(std::size_t index)
 
     // Collapse back to the most compact legal form.
     if (items.size() == 1)
-        *entry = object{items.front()};
+        entry = object{items.front()};
     else if (items.empty())
-        *entry = object{};
+        entry = object{};
 }
 
 void page_contents::clear()
 {
-    auto& dict = dictionary();
-
-    auto* entry = dict.get("Contents");
-    if (entry == nullptr)
-        return;
-
-    *entry = object{};
-}
-
-object* page_contents::contents()
-{
-    auto* dict = obj().content().as_dictionary();
-    return dict == nullptr ? nullptr : dict->get("Contents");
-}
-
-const object* page_contents::contents() const
-{
-    const auto* dict = obj().content().as_dictionary();
-    return dict == nullptr ? nullptr : dict->get("Contents");
-}
-
-dictionary_object& page_contents::dictionary()
-{
-    auto* dict = obj().content().as_dictionary();
-    if (dict == nullptr)
-        throw logic_exception{"Page object is not a dictionary"};
-
-    return *dict;
+    value() = object{};
 }
 
 array_object& page_contents::ensure_array()
 {
-    auto& dict = dictionary();
-    auto* entry = dict.get("Contents");
+    auto& entry = value();
 
-    if (entry == nullptr)
+    if (entry.is_null())
     {
-        dict.set("Contents", object{array_object{}});
-        entry = dict.get("Contents");
+        entry = object{array_object{}};
     }
-    else if (entry->is_null())
-    {
-        *entry = object{array_object{}};
-    }
-    else if (const auto* existing = entry->as_indirect_reference())
+    else if (const auto* existing = entry.as_indirect_reference())
     {
         array_object promoted;
         promoted.push_back(object{*existing});
-        *entry = object{std::move(promoted)};
+        entry = object{std::move(promoted)};
     }
 
-    if (entry == nullptr)
-        throw logic_exception{"Failed to create /Contents on the page dictionary"};
-
-    auto* arr = entry->as_array();
+    auto* arr = entry.as_array();
     if (arr == nullptr)
         throw logic_exception{
             "Page /Contents must be a stream reference or an array of stream references"};
@@ -260,11 +238,11 @@ array_object& page_contents::ensure_array()
 
 const indirect_reference& page_contents::reference_at(std::size_t index) const
 {
-    const auto* entry = contents();
-    if (entry == nullptr || entry->is_null())
+    const auto& entry = value();
+    if (entry.is_null())
         throw std::out_of_range{"Page /Contents is empty"};
 
-    if (const auto* ref = entry->as_indirect_reference())
+    if (const auto* ref = entry.as_indirect_reference())
     {
         if (index != 0)
             throw std::out_of_range{"Page /Contents index out of range"};
@@ -272,7 +250,7 @@ const indirect_reference& page_contents::reference_at(std::size_t index) const
         return *ref;
     }
 
-    const auto* arr = entry->as_array();
+    const auto* arr = entry.as_array();
     if (arr == nullptr)
         throw logic_exception{
             "Page /Contents must be a stream reference or an array of stream references"};

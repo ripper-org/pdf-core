@@ -104,18 +104,16 @@ page_contents object_manager::create_page_contents(document& doc, page& page)
     // any reference into its content. Rebinding invalidates earlier pointers.
     page.rebind_to_active_revision();
 
-    if (page.obj().content().as_dictionary() == nullptr)
+    auto* dict = page.obj().content().as_dictionary();
+    if (dict == nullptr)
         throw logic_exception{"Page object is not a dictionary"};
 
     auto stream = create_content_stream(doc);
 
-    page_contents contents{page.obj()};
-
     // "Create" replaces any existing /Contents rather than extending it.
-    contents.clear();
-    contents.append(stream);
+    dict->set("Contents", object{stream.obj().identity().reference()});
 
-    return contents;
+    return page_contents{*dict->get("Contents"), page.obj()};
 }
 
 page_contents object_manager::parse_page_contents(page& page)
