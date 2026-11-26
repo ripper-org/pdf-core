@@ -1,11 +1,13 @@
 #pragma once
 
-#include "ripper/pdf/core/document/canvas/path.hpp"
-#include "ripper/pdf/core/document/canvas/style.hpp"
+#include "ripper/pdf/core/document/canvas/path/path.hpp"
+#include "ripper/pdf/core/document/canvas/text/text.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/content_item.hpp"
 #include "ripper/pdf/core/document/geometry/matrix.hpp"
 #include "ripper/pdf/core/document/geometry/point.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
+#include "ripper/pdf/core/document/graphics/color.hpp"
+#include "ripper/pdf/core/document/graphics/style.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 
 #include <cstddef>
@@ -46,9 +48,11 @@ enum class canvas_mode
 /// painter.save().translate(72.0, 720.0).path().add_rect(box).fill().restore();
 /// ```
 ///
-/// Current scope: graphics state, coordinate transformations, and paths.
-/// Text, XObjects, marked content, and resource registration are added on top
-/// of `op()` as their own types.
+/// Current scope: graphics state, coordinate transformations, paths, colour,
+/// text state and text objects, marked content, and name-addressed XObjects and
+/// shadings. Resource registration (`/Font`, `/XObject`, `/ExtGState`, …) is
+/// still the caller's job; these methods emit the operators that reference a
+/// resource name.
 class canvas
 {
 public:
@@ -62,6 +66,11 @@ public:
 
     /// Returns a fluent view for building and painting a path (§8.5.2).
     [[nodiscard]] path path() noexcept;
+
+    /// Begins a text object (`BT`) and returns a fluent view for it (§9.4).
+    ///
+    /// @throws logic_exception if a text object is already open.
+    [[nodiscard]] text text();
 
     /// Emit `name` with `operands`, in operand-then-operator order.
     ///
@@ -123,6 +132,101 @@ public:
     /// Convenience overload for a brace-enclosed dash pattern.
     canvas& set_dash_pattern(std::initializer_list<double> pattern, double phase = 0.0);
 
+    /// Set the rendering intent (`ri`).
+    canvas& set_rendering_intent(rendering_intent intent);
+
+    /// Set the flatness tolerance (`i`), which must be in `[0, 100]`.
+    ///
+    /// @throws logic_exception if `flatness` is outside the spec range.
+    canvas& set_flatness(double flatness);
+
+    /// Apply the named graphics state from `/Resources /ExtGState` (`gs`).
+    canvas& set_graphics_state(std::string_view name);
+
+    /// Set the nonstroking colour from a device colour value (`g`, `rg`, `k`).
+    canvas& set_fill_color(const color& value);
+
+    /// Set the stroking colour from a device colour value (`G`, `RG`, `K`).
+    canvas& set_stroke_color(const color& value);
+
+    /// Set the nonstroking colour space by resource name (`cs`).
+    canvas& set_fill_color_space(std::string_view space);
+
+    /// Set the stroking colour space by resource name (`CS`).
+    canvas& set_stroke_color_space(std::string_view space);
+
+    /// Set nonstroking colour components in the current colour space (`sc`).
+    canvas& set_fill_color(std::span<const double> components);
+
+    /// Set stroking colour components in the current colour space (`SC`).
+    canvas& set_stroke_color(std::span<const double> components);
+
+    /// Set a nonstroking pattern colour: components plus pattern name (`scn`).
+    canvas& set_fill_color(std::span<const double> components, std::string_view pattern);
+
+    /// Set a stroking pattern colour: components plus pattern name (`SCN`).
+    canvas& set_stroke_color(std::span<const double> components, std::string_view pattern);
+
+    /// Set the font resource name and size (`Tf`).
+    canvas& set_font(std::string_view font_name, double size);
+
+    /// Set character spacing (`Tc`).
+    canvas& set_character_spacing(double spacing);
+
+    /// Set word spacing (`Tw`).
+    canvas& set_word_spacing(double spacing);
+
+    /// Set horizontal scaling as a percentage (`Tz`).
+    canvas& set_horizontal_scaling(double percent);
+
+    /// Set the leading (`TL`).
+    canvas& set_leading(double leading);
+
+    /// Set the text rise (`Ts`).
+    canvas& set_text_rise(double rise);
+
+    /// Set the text rendering mode (`Tr`).
+    canvas& set_text_render_mode(text_render_mode mode);
+
+    /// Draw the named XObject from `/Resources /XObject` (`Do`).
+    canvas& draw_xobject(std::string_view name);
+
+    /// Paint the named shading from `/Resources /Shading` (`sh`).
+    canvas& paint_shading(std::string_view name);
+
+    /// Write a complete inline image (`BI` … `ID` … `EI`).
+    canvas& draw_image(const inline_image& image);
+
+    /// Mark a point in the content stream with a tag (`MP`).
+    canvas& mark_point(std::string_view tag);
+
+    /// Mark a point with a tag and an inline property dictionary (`DP`).
+    canvas& mark_point(std::string_view tag, const dictionary_object& properties);
+
+    /// Begin a marked-content sequence with a tag (`BMC`).
+    canvas& begin_marked_content(std::string_view tag);
+
+    /// Begin a marked-content sequence with a tag and a named property list
+    /// from `/Resources /Properties` (`BDC`).
+    canvas& begin_marked_content(std::string_view tag, std::string_view properties_name);
+
+    /// Begin a marked-content sequence with a tag and an inline property
+    /// dictionary (`BDC`).
+    canvas& begin_marked_content(std::string_view tag, const dictionary_object& properties);
+
+    /// End the innermost marked-content sequence (`EMC`).
+    ///
+    /// @throws logic_exception if no marked-content sequence is open.
+    canvas& end_marked_content();
+
+    /// Begin a compatibility section (`BX`).
+    canvas& begin_compatibility();
+
+    /// End the innermost compatibility section (`EX`).
+    ///
+    /// @throws logic_exception if no compatibility section is open.
+    canvas& end_compatibility();
+
     /// Stroke a single segment from `from` to `to` (`m` `l` `S`).
     canvas& stroke_line(geometry::point from, geometry::point to);
 
@@ -138,8 +242,22 @@ public:
     /// Returns the number of currently open `q` states.
     [[nodiscard]] std::size_t state_depth() const noexcept;
 
+    /// Returns `true` while a text object opened by `text()` is still open.
+    [[nodiscard]] bool in_text() const noexcept;
+
+    /// Returns the number of currently open marked-content sequences.
+    [[nodiscard]] std::size_t marked_content_depth() const noexcept;
+
+    /// Returns the number of currently open compatibility sections.
+    [[nodiscard]] std::size_t compatibility_depth() const noexcept;
+
 private:
+    friend class text;
+
     stream_object& stream_;
     std::size_t state_depth_ = 0;
+    std::size_t marked_content_depth_ = 0;
+    std::size_t compatibility_depth_ = 0;
+    bool in_text_ = false;
 };
 } // namespace ripper::pdf::core

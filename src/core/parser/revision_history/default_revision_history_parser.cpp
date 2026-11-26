@@ -123,7 +123,7 @@ default_revision_history_parser::find_start_xref_offset(ripper::io::core::reader
 
         const std::string_view line{byte::as_chars(buffer.data()), bytes_read};
 
-        if (text::starts_with_token(line, start_xref_keyword))
+        if (text_utils::starts_with_token(line, start_xref_keyword))
         {
             const std::size_t offset_bytes = reader.read_line(buffer);
             if (offset_bytes == 0)
@@ -132,7 +132,7 @@ default_revision_history_parser::find_start_xref_offset(ripper::io::core::reader
             }
 
             const std::string_view offset_line{byte::as_chars(buffer.data()), offset_bytes};
-            const auto offset = text::parse_size_t(offset_line);
+            const auto offset = text_utils::parse_size_t(offset_line);
             if (offset)
             {
                 result = offset;
@@ -192,7 +192,7 @@ std::unique_ptr<revision_manager> default_revision_history_parser::parse()
                                     peek_sv.front() == '\r' || peek_sv.front() == '\t'))
             peek_sv.remove_prefix(1);
 
-        if (text::starts_with_token(peek_sv, "xref"))
+        if (text_utils::starts_with_token(peek_sv, "xref"))
         {
             std::string collected_content;
             constexpr std::size_t k_buf_size = 4096;

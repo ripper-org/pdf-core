@@ -1,37 +1,27 @@
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/canvas/canvas.hpp"
-#include "ripper/pdf/core/document/canvas/path.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
-#include "ripper/pdf/core/document/geometry/point.hpp"
-#include "ripper/pdf/core/document/geometry/rect.hpp"
+#include "ripper/pdf/core/document/graphics/color.hpp"
+#include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object/stream_object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "test_fixture.hpp"
+#include "test_support.hpp"
 
+#include <array>
 #include <catch2/catch_test_macros.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <type_traits>
 
 namespace ripper::pdf::core
 {
+using test_support::content_of;
+
 namespace
 {
-std::string content_of(const stream_object& stream)
-{
-    const auto& bytes = stream.stream().data();
-    std::string text;
-    text.reserve(bytes.size());
-
-    for (const std::byte byte : bytes)
-        text.push_back(static_cast<char>(byte));
-
-    return text;
-}
-
 class writer_document
 {
 public:
@@ -193,148 +183,132 @@ TEST_CASE("canvas rejects invalid line state", "[canvas]")
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("path builds and fills rectangles", "[canvas][path]")
+TEST_CASE("canvas emits device color operators", "[canvas][color]")
 {
     stream_object stream;
     canvas painter{stream};
 
-    painter.fill_rect(geometry::rect{10.0, 20.0, 30.0, 40.0});
-    painter.path().add_rect(geometry::rect{1.0, 2.0, 3.0, 4.0}).fill(fill_rule::even_odd);
+    painter.set_fill_color(color::gray(0.5))
+        .set_stroke_color(color::rgb(1.0, 0.0, 0.0))
+        .set_fill_color(color::cmyk(0.0, 0.0, 0.0, 1.0))
+        .set_stroke_color(color::gray(0.25));
 
-    REQUIRE(content_of(stream) == "10.0 20.0 30.0 40.0 re\nf\n1.0 2.0 3.0 4.0 re\nf*\n");
+    REQUIRE(content_of(stream) == "0.5 g\n1.0 0.0 0.0 RG\n0.0 0.0 0.0 1.0 k\n0.25 G\n");
 }
 
-TEST_CASE("path emits curve operators", "[canvas][path]")
+TEST_CASE("canvas emits color space and pattern operators", "[canvas][color]")
 {
     stream_object stream;
     canvas painter{stream};
 
-    painter.path()
-        .move_to({1.0, 2.0})
-        .curve_to({3.0, 4.0}, {5.0, 6.0}, {7.0, 8.0})
-        .curve_to_replicated_start({9.0, 10.0}, {11.0, 12.0})
-        .curve_to_replicated_end({13.0, 14.0}, {15.0, 16.0})
-        .close()
-        .stroke();
+    painter.set_fill_color_space("Pattern")
+        .set_stroke_color_space("DeviceCMYK")
+        .set_fill_color(std::array{0.5})
+        .set_stroke_color(std::array{0.1, 0.2, 0.3, 0.4})
+        .set_fill_color(std::array{0.5}, "P0")
+        .set_stroke_color(std::array{0.25}, "P1");
 
-    REQUIRE(content_of(stream) == "1.0 2.0 m\n"
-                                  "3.0 4.0 5.0 6.0 7.0 8.0 c\n"
-                                  "9.0 10.0 11.0 12.0 v\n"
-                                  "13.0 14.0 15.0 16.0 y\n"
-                                  "h\n"
-                                  "S\n");
+    REQUIRE(content_of(stream) == "/Pattern cs\n"
+                                  "/DeviceCMYK CS\n"
+                                  "0.5 sc\n"
+                                  "0.1 0.2 0.3 0.4 SC\n"
+                                  "0.5 /P0 scn\n"
+                                  "0.25 /P1 SCN\n");
 }
 
-TEST_CASE("path maps paint styles to operators", "[canvas][path]")
-{
-    struct paint_case
-    {
-        paint_style style;
-        std::string_view expected;
-    };
-
-    const paint_case cases[] = {
-        {paint_style::stroke, "S"},
-        {paint_style::close_stroke, "s"},
-        {paint_style::fill, "f"},
-        {paint_style::fill_even_odd, "f*"},
-        {paint_style::fill_stroke, "B"},
-        {paint_style::fill_stroke_even_odd, "B*"},
-        {paint_style::close_fill_stroke, "b"},
-        {paint_style::close_fill_stroke_even_odd, "b*"},
-    };
-
-    for (const auto& [style, expected] : cases)
-    {
-        stream_object stream;
-        canvas painter{stream};
-
-        painter.path().move_to({0.0, 0.0}).paint(style);
-
-        REQUIRE(content_of(stream) == "0.0 0.0 m\n" + std::string{expected} + "\n");
-    }
-}
-
-TEST_CASE("path clips and discards paths", "[canvas][path]")
+TEST_CASE("canvas emits graphics state and named resource operators", "[canvas][graphics]")
 {
     stream_object stream;
     canvas painter{stream};
 
-    painter.path().add_rect({0.0, 0.0, 10.0, 10.0}).clip();
-    painter.path().add_rect({1.0, 1.0, 2.0, 2.0}).clip(fill_rule::even_odd);
-    painter.path().move_to({0.0, 0.0}).line_to({1.0, 1.0}).discard();
+    painter.set_rendering_intent(rendering_intent::relative_colorimetric)
+        .set_flatness(0.5)
+        .set_graphics_state("GS0")
+        .draw_xobject("Im1")
+        .paint_shading("Sh0");
 
-    REQUIRE(content_of(stream) == "0.0 0.0 10.0 10.0 re\nW\nn\n"
-                                  "1.0 1.0 2.0 2.0 re\nW*\nn\n"
-                                  "0.0 0.0 m\n1.0 1.0 l\nn\n");
+    REQUIRE(content_of(stream) == "/RelativeColorimetric ri\n"
+                                  "0.5 i\n"
+                                  "/GS0 gs\n"
+                                  "/Im1 Do\n"
+                                  "/Sh0 sh\n");
+
+    REQUIRE_THROWS_AS(painter.set_flatness(-1.0), logic_exception);
+    REQUIRE_THROWS_AS(painter.set_flatness(101.0), logic_exception);
 }
 
-TEST_CASE("path rejects segments without an open path", "[canvas][path]")
+TEST_CASE("canvas emits marked content and compatibility operators", "[canvas][marked]")
 {
     stream_object stream;
     canvas painter{stream};
 
-    REQUIRE_THROWS_AS(painter.path().line_to({1.0, 1.0}), logic_exception);
-    REQUIRE_THROWS_AS(painter.path().curve_to({1.0, 1.0}, {2.0, 2.0}, {3.0, 3.0}), logic_exception);
-    REQUIRE_THROWS_AS(painter.path().close(), logic_exception);
-    REQUIRE_THROWS_AS(painter.path().stroke(), logic_exception);
-    REQUIRE_THROWS_AS(painter.path().clip(), logic_exception);
-    REQUIRE_THROWS_AS(painter.path().discard(), logic_exception);
+    painter.mark_point("Tag")
+        .begin_marked_content("Span")
+        .end_marked_content()
+        .begin_marked_content("Artifact", "MC0")
+        .end_marked_content()
+        .begin_compatibility()
+        .end_compatibility();
+
+    REQUIRE(painter.marked_content_depth() == 0);
+    REQUIRE(painter.compatibility_depth() == 0);
+    REQUIRE(content_of(stream) == "/Tag MP\n"
+                                  "/Span BMC\n"
+                                  "EMC\n"
+                                  "/Artifact /MC0 BDC\n"
+                                  "EMC\n"
+                                  "BX\n"
+                                  "EX\n");
+
+    dictionary_object properties;
+    properties.set("ActualText", object{std::string{"x"}});
+
+    painter.mark_point("Tag", properties).begin_marked_content("Span", properties);
+
+    REQUIRE(content_of(stream) == "/Tag MP\n"
+                                  "/Span BMC\n"
+                                  "EMC\n"
+                                  "/Artifact /MC0 BDC\n"
+                                  "EMC\n"
+                                  "BX\n"
+                                  "EX\n"
+                                  "/Tag <<\n/ActualText (x)\n>> DP\n"
+                                  "/Span <<\n/ActualText (x)\n>> BDC\n");
+}
+
+TEST_CASE("canvas rejects unbalanced marked content and compatibility", "[canvas][marked]")
+{
+    stream_object stream;
+    canvas painter{stream};
+
+    REQUIRE_THROWS_AS(painter.end_marked_content(), logic_exception);
+    REQUIRE_THROWS_AS(painter.end_compatibility(), logic_exception);
     REQUIRE(content_of(stream).empty());
 }
 
-TEST_CASE("path views do not share path state", "[canvas][path]")
+TEST_CASE("canvas draws inline images", "[canvas]")
 {
     stream_object stream;
     canvas painter{stream};
 
-    auto first = painter.path();
-    first.move_to({0.0, 0.0});
+    inline_image image;
+    image.dictionary.set("W", object{std::int64_t{1}});
+    image.dictionary.set("H", object{std::int64_t{1}});
+    image.data = {std::byte{0x01}, std::byte{0x02}};
 
-    // A fresh view starts with no open path even though the stream has one.
-    REQUIRE_THROWS_AS(painter.path().line_to({1.0, 1.0}), logic_exception);
+    painter.draw_image(image);
 
-    first.stroke();
-    REQUIRE(content_of(stream) == "0.0 0.0 m\nS\n");
+    const auto content = content_of(stream);
+    REQUIRE(content.starts_with("BI\n"));
+    REQUIRE(content.find("/W 1\n") != std::string::npos);
+    REQUIRE(content.find("/H 1\n") != std::string::npos);
+    REQUIRE(content.find("ID \x01\x02") != std::string::npos);
+    REQUIRE(content.ends_with("\nEI\n"));
 }
 
-TEST_CASE("path ignores path operators emitted via op", "[canvas][path]")
-{
-    stream_object stream;
-    canvas painter{stream};
-
-    painter.op("m", {object{std::int64_t{0}}, object{std::int64_t{0}}});
-
-    REQUIRE_THROWS_AS(painter.path().line_to({1.0, 1.0}), logic_exception);
-    REQUIRE(content_of(stream) == "0 0 m\n");
-}
-
-TEST_CASE("a path view can start more than one path", "[canvas][path]")
-{
-    stream_object stream;
-    canvas painter{stream};
-
-    auto target = painter.path();
-    target.move_to({0.0, 0.0}).line_to({1.0, 1.0}).stroke();
-    target.move_to({2.0, 2.0}).line_to({3.0, 3.0}).stroke();
-
-    REQUIRE(content_of(stream) == "0.0 0.0 m\n1.0 1.0 l\nS\n2.0 2.0 m\n3.0 3.0 l\nS\n");
-}
-
-TEST_CASE("canvas and path are non-copyable views", "[canvas][path]")
+TEST_CASE("canvas is a non-copyable view", "[canvas]")
 {
     STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<canvas>);
     STATIC_REQUIRE_FALSE(std::is_move_constructible_v<canvas>);
-    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<path>);
-    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<path>);
 }
-
-TEST_CASE("geometry rect normalizes corners", "[geometry]")
-{
-    const auto normalized =
-        geometry::rect::from_corners(geometry::point{10.0, 20.0}, geometry::point{4.0, 5.0});
-
-    REQUIRE(normalized == geometry::rect{4.0, 5.0, 6.0, 15.0});
-}
-
 } // namespace ripper::pdf::core

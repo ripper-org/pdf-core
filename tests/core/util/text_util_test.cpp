@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace ripper::pdf::core::text
+namespace ripper::pdf::core::text_utils
 {
 // ── escape_name / unescape_name roundtrip ─────────────────────────────────
 
@@ -241,4 +241,4 @@ TEST_CASE("starts_with_token trims surrounding whitespace and line endings", "[u
     REQUIRE_FALSE(starts_with_token("", "startxref"));
     REQUIRE_FALSE(starts_with_token("start", "startxref"));
 }
-} // namespace ripper::pdf::core::text
+} // namespace ripper::pdf::core::text_utils

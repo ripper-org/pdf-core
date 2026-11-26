@@ -21,7 +21,7 @@ void default_cross_reference_table_parser::parse_subsection(cross_reference_sect
     }
 
     std::string_view headerLine = content.substr(0, newlinePos);
-    headerLine = text::trim_ascii(text::strip_line_endings(headerLine));
+    headerLine = text_utils::trim_ascii(text_utils::strip_line_endings(headerLine));
     content = content.substr(newlinePos + 1);
 
     const std::size_t spacePos = headerLine.find(' ');
@@ -30,8 +30,8 @@ void default_cross_reference_table_parser::parse_subsection(cross_reference_sect
         throw parse_exception{"Invalid xref subsection header"};
     }
 
-    const auto startObj = text::parse_size_t(headerLine.substr(0, spacePos));
-    const auto count = text::parse_size_t(headerLine.substr(spacePos + 1));
+    const auto startObj = text_utils::parse_size_t(headerLine.substr(0, spacePos));
+    const auto count = text_utils::parse_size_t(headerLine.substr(spacePos + 1));
 
     if (!startObj || !count)
     {
@@ -47,7 +47,7 @@ void default_cross_reference_table_parser::parse_subsection(cross_reference_sect
         }
 
         std::string_view entryLine = content.substr(0, entryNewline);
-        entryLine = text::trim_ascii(text::strip_line_endings(entryLine));
+        entryLine = text_utils::trim_ascii(text_utils::strip_line_endings(entryLine));
         content = content.substr(entryNewline + 1);
 
         // Xref entry layout: 10-digit offset, space, 5-digit generation, space, 1-char flag
@@ -113,8 +113,8 @@ cross_reference_section default_cross_reference_table_parser::parse(std::string_
     }
 
     std::string_view xrefLine = content.substr(0, firstNewline);
-    xrefLine = text::trim_ascii(text::strip_line_endings(xrefLine));
-    if (!text::starts_with_token(xrefLine, "xref"))
+    xrefLine = text_utils::trim_ascii(text_utils::strip_line_endings(xrefLine));
+    if (!text_utils::starts_with_token(xrefLine, "xref"))
     {
         throw parse_exception{"Missing xref keyword"};
     }
@@ -125,8 +125,8 @@ cross_reference_section default_cross_reference_table_parser::parse(std::string_
 
     while (!content.empty())
     {
-        content = text::trim_ascii(content);
-        if (content.empty() || text::starts_with_token(content, "trailer"))
+        content = text_utils::trim_ascii(content);
+        if (content.empty() || text_utils::starts_with_token(content, "trailer"))
         {
             break;
         }

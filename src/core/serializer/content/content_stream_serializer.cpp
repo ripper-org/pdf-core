@@ -32,7 +32,7 @@ void append_inline_image(std::vector<std::byte>& out, const inline_image& image,
     for (const auto& [key, value] : image.dictionary.entries())
     {
         byte::append_bytes(out, '/');
-        byte::append_bytes(out, text::escape_name(key));
+        byte::append_bytes(out, text_utils::escape_name(key));
         byte::append_bytes(out, ' ');
         byte::append_bytes(out, serializer.serialize(value));
         byte::append_bytes(out, '\n');

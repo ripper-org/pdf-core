@@ -92,7 +92,7 @@ std::vector<std::byte> default_object_serializer::serialize_real(double value) c
 
 std::vector<std::byte> default_object_serializer::serialize_string(const std::string& value) const
 {
-    const auto escaped = text::escape_literal_string(value);
+    const auto escaped = text_utils::escape_literal_string(value);
 
     std::vector<std::byte> out;
     byte::append_bytes(out, '(');
@@ -104,7 +104,7 @@ std::vector<std::byte> default_object_serializer::serialize_string(const std::st
 
 std::vector<std::byte> default_object_serializer::serialize_name(const name_object& value) const
 {
-    const auto escaped = text::escape_name(value.value);
+    const auto escaped = text_utils::escape_name(value.value);
 
     std::vector<std::byte> out;
     byte::append_bytes(out, '/');

@@ -129,7 +129,7 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     if (n_token.type != lexer_token_type::integer)
         throw parse_exception{"Expected object number in indirect object header"};
 
-    const auto parsed_obj = text::parse_u32(n_token.lexeme);
+    const auto parsed_obj = text_utils::parse_u32(n_token.lexeme);
     if (!parsed_obj || *parsed_obj != ref.object_number())
         throw parse_exception{"Object number mismatch in indirect object header"};
 
@@ -137,7 +137,7 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
     if (g_token.type != lexer_token_type::integer)
         throw parse_exception{"Expected generation number in indirect object header"};
 
-    const auto parsed_gen = text::parse_u16(g_token.lexeme);
+    const auto parsed_gen = text_utils::parse_u16(g_token.lexeme);
 
     // Generation number paranoia: a malformed generation field is an error
     // regardless of the expected value.
@@ -156,7 +156,7 @@ std::string indirect_object_resolver::resolve_uncompressed(indirect_reference re
         static_cast<std::size_t>(obj_token.lexeme.data() + obj_token.lexeme.size() - source.data());
     /// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    auto endobj_pos = text::find_endobj(source);
+    auto endobj_pos = text_utils::find_endobj(source);
     if (endobj_pos == std::string::npos)
         throw parse_exception{"Missing endobj marker for indirect object " +
                               std::to_string(ref.object_number()) + " (offset " +

@@ -10,7 +10,7 @@
 #include <string_view>
 #include <system_error>
 
-namespace ripper::pdf::core::text
+namespace ripper::pdf::core::text_utils
 {
 [[nodiscard]] constexpr std::string_view strip_line_endings(std::string_view s) noexcept
 {
@@ -394,4 +394,4 @@ namespace ripper::pdf::core::text
 
     return unescaped;
 }
-} // namespace ripper::pdf::core::text
+} // namespace ripper::pdf::core::text_utils

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ripper/pdf/core/document/canvas/style.hpp"
 #include "ripper/pdf/core/document/geometry/point.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
+#include "ripper/pdf/core/document/graphics/style.hpp"
 
 #include <initializer_list>
 #include <span>
@@ -76,6 +76,55 @@ public:
     ///
     /// Rectangles are complete subpaths and may start a path on their own.
     path& add_rect(const geometry::rect& r);
+
+    /// Append an open polyline through `points` (`m` then `l`).
+    ///
+    /// @throws logic_exception if fewer than two points are supplied.
+    path& add_polyline(std::span<const geometry::point> points);
+
+    /// Convenience overload for a brace-enclosed polyline.
+    path& add_polyline(std::initializer_list<geometry::point> points);
+
+    /// Append a closed polygon through `points` (`m`, `l`, then `h`).
+    ///
+    /// @throws logic_exception if fewer than three points are supplied.
+    path& add_polygon(std::span<const geometry::point> points);
+
+    /// Convenience overload for a brace-enclosed polygon.
+    path& add_polygon(std::initializer_list<geometry::point> points);
+
+    /// Append a circle as four cubic Bézier segments and close it.
+    ///
+    /// @throws logic_exception if `radius` is not positive.
+    path& add_circle(geometry::point center, double radius);
+
+    /// Append an ellipse as four cubic Bézier segments and close it.
+    ///
+    /// @throws logic_exception if either radius is not positive.
+    path& add_ellipse(geometry::point center, double x_radius, double y_radius);
+
+    /// Append a closed rounded rectangle.
+    ///
+    /// `radius` is clamped to at most half the shorter side; a radius of zero
+    /// emits a plain rectangle.
+    ///
+    /// @throws logic_exception if the rectangle has a non-positive extent or
+    ///         `radius` is negative.
+    path& add_rounded_rect(const geometry::rect& r, double radius);
+
+    /// Append an elliptical arc as cubic Bézier segments (`m` then `c`).
+    ///
+    /// The arc starts at `start_degrees` and sweeps by `sweep_degrees`; it is
+    /// left open so the caller can `close()` it or continue the subpath. The
+    /// sweep is split into segments of at most 90 degrees.
+    ///
+    /// @throws logic_exception if a radius is not positive.
+    path& add_arc(geometry::point center, double x_radius, double y_radius, double start_degrees,
+                  double sweep_degrees);
+
+    /// Convenience overload for a circular arc.
+    path& add_arc(geometry::point center, double radius, double start_degrees,
+                  double sweep_degrees);
 
     /// Graphics-state parameters are legal at any point in a path, so the
     /// canvas setters are forwarded here for chaining.

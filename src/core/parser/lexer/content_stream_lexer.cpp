@@ -130,7 +130,7 @@ namespace
 
         const bool separated_before = position > 0 && is_whitespace(content[position - 1]);
         const bool separated_after =
-            position + 2 >= limit || text::is_token_boundary(content[position + 2]);
+            position + 2 >= limit || text_utils::is_token_boundary(content[position + 2]);
 
         if (separated_before && separated_after)
             return position;
@@ -254,7 +254,8 @@ object content_stream_lexer::parse_name()
         ++position_;
     }
 
-    return object{name_object{text::unescape_name(content_.substr(start, position_ - start))}};
+    return object{
+        name_object{text_utils::unescape_name(content_.substr(start, position_ - start))}};
 }
 
 object content_stream_lexer::parse_literal_string()
@@ -293,8 +294,8 @@ object content_stream_lexer::parse_literal_string()
             --depth;
             if (depth == 0)
             {
-                return object{string_object{
-                    text::unescape_literal_string(content_.substr(start, position_ - 1 - start))}};
+                return object{string_object{text_utils::unescape_literal_string(
+                    content_.substr(start, position_ - 1 - start))}};
             }
         }
     }

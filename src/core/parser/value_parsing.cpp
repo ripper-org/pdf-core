@@ -88,8 +88,8 @@ indirect_reference parse_indirect_reference(pdf_lexer& lexer)
         marker.type != lexer_token_type::keyword || marker.lexeme != "R")
         throw parse_exception{"Invalid indirect reference"};
 
-    const auto obj_num = text::parse_size_t(obj.lexeme);
-    const auto gen_num = text::parse_size_t(gen.lexeme);
+    const auto obj_num = text_utils::parse_size_t(obj.lexeme);
+    const auto gen_num = text_utils::parse_size_t(gen.lexeme);
 
     if (!obj_num || !gen_num || *obj_num > std::numeric_limits<std::uint32_t>::max() ||
         *gen_num > std::numeric_limits<std::uint16_t>::max())
@@ -153,7 +153,7 @@ dictionary_object parse_dictionary_impl(pdf_lexer& lexer, std::size_t depth, std
         const auto key = lexer.next();
         auto val = parse_value_impl(lexer, depth, max_depth);
 
-        dict.set(text::unescape_name(key.lexeme), std::move(val));
+        dict.set(text_utils::unescape_name(key.lexeme), std::move(val));
     }
     return dict;
 }
@@ -203,13 +203,13 @@ object parse_value_impl(pdf_lexer& lexer, std::size_t depth, std::size_t max_dep
     if (p.type == lexer_token_type::name)
     {
         const auto tok = lexer.next();
-        return object{name_object{text::unescape_name(tok.lexeme)}};
+        return object{name_object{text_utils::unescape_name(tok.lexeme)}};
     }
 
     if (p.type == lexer_token_type::literal_string)
     {
         const auto tok = lexer.next();
-        return object{text::unescape_literal_string(tok.lexeme)};
+        return object{text_utils::unescape_literal_string(tok.lexeme)};
     }
 
     if (p.type == lexer_token_type::hex_string)
@@ -300,7 +300,7 @@ std::string_view extract_object_body(std::string_view content)
                                                       obj_token.lexeme.size() - content.data());
     /// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    const auto endobj_pos = text::find_endobj(content);
+    const auto endobj_pos = text_utils::find_endobj(content);
     if (endobj_pos == std::string_view::npos)
         throw parse_exception{"Missing endobj keyword"};
 
