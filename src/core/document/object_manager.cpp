@@ -22,6 +22,20 @@
 namespace ripper::pdf::core
 {
 
+indirect_object& object_manager::create_object(document& doc, object value)
+{
+    auto& xref = doc.cross_reference_table();
+
+    auto ref = xref.reserve();
+    auto obj = std::make_unique<indirect_object>(object_identity{&doc, ref}, std::move(value));
+
+    auto* raw = xref.commit(std::move(obj));
+    if (raw == nullptr)
+        throw logic_exception{"Failed to commit object to cross-reference table"};
+
+    return *raw;
+}
+
 catalog object_manager::parse_catalog(document& doc)
 {
     auto root_ref = doc.trailer().compiled().root();
@@ -98,48 +112,44 @@ page object_manager::create_page(document& doc, pages& parent, const geometry::r
     return page{*raw_page};
 }
 
-page_contents object_manager::create_page_contents(document& doc, page& page)
+page_contents object_manager::create_page_contents(page& page)
 {
-    // The page may still be bound to an older revision, so rebind before taking
-    // any reference into its content. Rebinding invalidates earlier pointers.
-    page.rebind_to_active_revision();
-
     auto* dict = page.obj().content().as_dictionary();
     if (dict == nullptr)
         throw logic_exception{"Page object is not a dictionary"};
 
-    auto stream = create_content_stream(doc);
-
-    // "Create" replaces any existing /Contents rather than extending it.
-    dict->set("Contents", object{stream.obj().identity().reference()});
+    if (dict->get("Contents") == nullptr)
+        dict->set("Contents", object{array_object{}});
 
     return page_contents{*dict->get("Contents"), page.obj()};
 }
 
 page_contents object_manager::parse_page_contents(page& page)
 {
-    // /Contents is validated lazily by the view, so this is just here for symmetry.
-    return page_contents{page.obj()};
+    auto* dict = page.obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object is not a dictionary"};
+
+    auto* entry = dict->get("Contents");
+    if (entry == nullptr)
+        throw logic_exception{"Page has no /Contents entry"};
+
+    return page_contents{*entry, page.obj()};
+}
+
+indirect_object& object_manager::create_stream(document& doc, stream_object value)
+{
+    return create_object(doc, object{std::move(value)});
 }
 
 content_stream object_manager::create_content_stream(document& doc)
 {
-    auto& xref = doc.cross_reference_table();
-
     // An empty stream still needs /Length in its dictionary: the serializer
     // writes the dictionary verbatim.
     stream_object stream_obj;
     stream_obj.sync_length();
 
-    auto content_stream_ref = xref.reserve();
-    auto content_stream_obj = std::make_unique<indirect_object>(
-        object_identity{&doc, content_stream_ref}, object{std::move(stream_obj)});
-
-    auto* raw_content_stream = xref.commit(std::move(content_stream_obj));
-    if (raw_content_stream == nullptr)
-        throw logic_exception{"Failed to commit content stream to cross-reference table"};
-
-    return content_stream{*raw_content_stream};
+    return content_stream{create_stream(doc, std::move(stream_obj))};
 }
 
 std::unique_ptr<revision_manager> object_manager::parse_revision_history(const document& doc)

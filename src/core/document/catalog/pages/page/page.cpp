@@ -168,12 +168,8 @@ page_contents page::content()
     if (dict == nullptr)
         throw logic_exception{"Page content is not a dictionary"};
 
-    auto& doc = obj().identity().owner();
-
-    // A fresh page has no /Contents entry yet; allocate one on first access so
-    // callers can always write to the page's content.
     if (dict->get("Contents") == nullptr)
-        return object_manager::create_page_contents(doc, *this);
+        return object_manager::create_page_contents(*this);
 
     return object_manager::parse_page_contents(*this);
 }
@@ -187,7 +183,7 @@ canvas page::canvas(canvas_mode mode)
     // Allocate before touching /Contents so a failed commit leaves the page intact.
     auto stream = object_manager::create_content_stream(doc);
 
-    page_contents contents{obj()};
+    auto contents = content();
 
     switch (mode)
     {

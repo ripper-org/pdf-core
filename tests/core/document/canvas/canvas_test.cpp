@@ -96,7 +96,7 @@ TEST_CASE("page canvas appends a stream to /Contents", "[canvas][page][write]")
 
     auto contents = target.content();
     REQUIRE(contents.size() == 1);
-    REQUIRE_FALSE(contents.is_array());
+    REQUIRE(contents.is_array());
 
     auto streams = contents.streams();
     REQUIRE(streams.size() == 1);
@@ -121,7 +121,7 @@ TEST_CASE("page canvas prepend and replace order the content streams", "[canvas]
 
     auto replaced = target.content();
     REQUIRE(replaced.size() == 1);
-    REQUIRE_FALSE(replaced.is_array());
+    REQUIRE(replaced.is_array());
     REQUIRE(content_of(*replaced.at(0).stream()) == "1.0 0.0 0.0 1.0 3.0 3.0 cm\n");
 }
 

@@ -45,6 +45,13 @@ class object_manager
 public:
     object_manager() = delete;
 
+    /// Allocate a new indirect object and commit it to the active revision.
+    ///
+    /// The returned reference remains valid for the lifetime of the document.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static indirect_object& create_object(document& doc, object value);
+
     /// Parse the catalog from the file and resolve it into the xref.
     ///
     /// Looks up the /Root reference in the trailer, resolves the object via the parser,
@@ -74,32 +81,37 @@ public:
     /// @throws logic_exception if the commit fails.
     [[nodiscard]] static page create_page(document& doc, pages& parent, const geometry::rect& box);
 
-    /// Allocate an empty content stream and attach it to a page's /Contents.
+    /// Creates a page's /Contents slot and returns a view over it.
     ///
-    /// Rebinds `page` to the active revision (so the modification is captured by
-    /// an incremental save), allocates a new content stream with `/Length 0` in
-    /// the xref, and sets the page's /Contents to that stream's reference.
+    /// Does not allocate a content stream: an absent /Contents entry becomes an
+    /// empty array, which the returned view reports as empty.
     ///
-    /// Any existing /Contents is replaced; streams referenced only by the old
-    /// value become unreferenced and are not removed from the xref.
+    /// @return A non-owning view over the page's /Contents slot; the page must
+    ///         outlive it.
     ///
-    /// @return A view over the page's /Contents entry.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary or the
-    ///         xref operations fail.
-    [[nodiscard]] static page_contents create_page_contents(document& doc, page& page);
+    /// @throws logic_exception if the page object is not a dictionary.
+    [[nodiscard]] static page_contents create_page_contents(page& page);
 
-    /// Wrap a page's /Contents entry into a lazily validated view.
+    /// Wrap an existing page's /Contents entry into a lazily validated view.
     ///
-    /// Does not resolve anything: the returned view validates and resolves
-    /// /Contents on use (`size()`, `at()`, `streams()`), so merely accessing a
-    /// page's contents never loads the referenced streams.
+    /// Does not create or modify anything: the returned view validates and
+    /// resolves /Contents on use (`size()`, `at()`, `streams()`), so merely
+    /// accessing a page's contents never loads the referenced streams.
     ///
-    /// Accepts absent, null, a single indirect stream reference, or an array of
+    /// Accepts null, a single indirect stream reference, or an array of
     /// indirect stream references (ISO 32000-1 §7.7.3.3).
     ///
-    /// @return A non-owning view over `page`; the page must outlive it.
+    /// @return A non-owning view over the page's /Contents slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if the page object is not a dictionary or has no
+    ///         /Contents entry.
     [[nodiscard]] static page_contents parse_page_contents(page& page);
+
+    /// Allocate a new indirect stream object and commit it to the active revision.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static indirect_object& create_stream(document& doc, stream_object value);
 
     /// Allocate a new, empty content stream in the xref.
     ///

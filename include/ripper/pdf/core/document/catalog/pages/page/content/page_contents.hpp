@@ -17,8 +17,11 @@ class object;
 /// Facet of a `page`: a non-owning view over the page's /Contents *slot*. The
 /// slot may hold null, a single indirect stream reference, or an array of
 /// indirect stream references. All forms are exposed through the same API;
-/// `is_array()` reports which form the document actually uses and the mutators
-/// promote a single reference to an array when a second stream is added.
+/// `is_array()` reports which form the document actually uses.
+///
+/// Mutators keep the entry in array form: appending, inserting, replacing or
+/// removing never collapses it back to a single reference, and removing the
+/// last stream leaves an empty array.
 ///
 /// Because the view targets the slot rather than the current value, replacing
 /// the value (for example promoting a reference to an array) does not
@@ -34,17 +37,8 @@ class page_contents : public direct_object_view
 {
 public:
     /// @param contents the page's /Contents slot.
-    /// @param page_obj the page's indirect_object (must hold a dictionary).
-    page_contents(object& contents, indirect_object& page_obj) noexcept;
-
-    /// Ensures the page has a /Contents slot and views it.
-    ///
-    /// An absent /Contents entry is created as a null direct object; it does
-    /// not allocate a content stream.
-    ///
-    /// @param page_obj the page's indirect_object (must hold a dictionary).
-    /// @throws logic_exception if the page object is not a dictionary.
-    explicit page_contents(indirect_object& page_obj);
+    /// @param owner the page's indirect_object (must hold a dictionary).
+    page_contents(object& contents, indirect_object& owner) noexcept;
 
     /// Returns `true` if /Contents is absent, null or an empty array.
     [[nodiscard]] bool empty() const;
@@ -79,32 +73,47 @@ public:
 
     /// Appends `stream` to the end of /Contents.
     ///
-    /// An absent or null entry becomes a single reference; a single reference
-    /// is promoted to an array.
+    /// The entry is stored as an array; a null or single-reference entry is
+    /// promoted to an array.
     void append(content_stream stream);
 
     /// Inserts `stream` before position `index`.
     ///
-    /// `index == size()` appends. Promotes the entry to an array when needed.
+    /// `index == size()` appends. The entry is always stored as an array.
     ///
     /// @throws std::out_of_range if `index > size()`.
     void insert(std::size_t index, content_stream stream);
 
     /// Replaces the stream reference at `index`.
     ///
+    /// The entry is stored as an array.
+    ///
     /// @throws std::out_of_range if `index >= size()`.
     void replace(std::size_t index, content_stream stream);
 
     /// Removes the stream reference at `index`.
     ///
-    /// Collapses the entry back to a single reference when one stream remains,
-    /// and to null when none remain.
+    /// The entry stays an array; removing the last stream leaves an empty
+    /// array.
     ///
     /// @throws std::out_of_range if `index >= size()`.
     void remove(std::size_t index);
 
-    /// Removes every stream reference, leaving /Contents null.
+    /// Removes every stream reference, leaving an empty array.
     void clear();
+
+    /// Merges every stream in /Contents into one stream.
+    ///
+    /// This is the exceptional way to leave /Contents in its single-stream
+    /// form. Streams are decoded in document order, concatenated with a single
+    /// pre-sized buffer, and stored as a new unfiltered stream. /Contents is
+    /// replaced by that stream's reference.
+    ///
+    /// An empty /Contents is a no-op. A single stream is collapsed to a
+    /// reference without being re-encoded.
+    ///
+    /// @throws logic_exception if a reference is not a stream or decoding fails.
+    void squash();
 
 private:
     /// Returns /Contents as an array, promoting a single reference or a null

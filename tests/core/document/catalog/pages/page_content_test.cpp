@@ -84,6 +84,14 @@ std::vector<std::byte> make_page_pdf(const std::string& contents_entry,
 
     return builder.finish();
 }
+
+std::string decoded_text(const stream_object& source)
+{
+    const auto decoded = source.decode();
+    const auto bytes = decoded.bytes();
+
+    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
 } // namespace
 
 TEST_CASE("page exposes a single /Contents stream", "[content_stream][page]")
@@ -132,7 +140,7 @@ TEST_CASE("page distinguishes a one-element /Contents array", "[content_stream][
     REQUIRE(contents.size() == 1);
 }
 
-TEST_CASE("page without /Contents allocates an empty stream on access", "[content_stream][page]")
+TEST_CASE("page without /Contents reports empty contents", "[content_stream][page]")
 {
     auto data = make_page_pdf("", {});
     document doc{std::make_unique<ripper::io::core::memory_reader>(data), nullptr};
@@ -141,10 +149,13 @@ TEST_CASE("page without /Contents allocates an empty stream on access", "[conten
     REQUIRE(candidate.has_value());
 
     auto contents = candidate->content();
-    REQUIRE_FALSE(contents.empty());
-    REQUIRE(contents.size() == 1);
-    REQUIRE_FALSE(contents.is_array());
-    REQUIRE(contents.at(0).stream() != nullptr);
+    REQUIRE(contents.empty());
+    REQUIRE(contents.size() == 0);
+    REQUIRE(contents.is_array());
+
+    const auto* entry = candidate->obj().content().as_dictionary()->get("Contents");
+    REQUIRE(entry != nullptr);
+    REQUIRE(entry->is_array());
 }
 
 TEST_CASE("page with null /Contents has empty contents", "[content_stream][page]")
@@ -196,4 +207,41 @@ TEST_CASE("page rejects a non-reference /Contents array entry", "[content_stream
     auto contents = candidate->content();
     REQUIRE_THROWS_AS(contents.streams(), logic_exception);
 }
+TEST_CASE("page contents squash concatenates streams in order", "[content_stream][page]")
+{
+    auto data = make_page_pdf("[4 0 R 5 0 R]", {"A", "B"});
+    document doc{std::make_unique<ripper::io::core::memory_reader>(data), nullptr};
+
+    auto candidate = doc.catalog().pages().page(0);
+    REQUIRE(candidate.has_value());
+
+    auto contents = candidate->content();
+    contents.squash();
+
+    REQUIRE_FALSE(contents.is_array());
+    REQUIRE(contents.size() == 1);
+
+    const auto* merged = contents.at(0).stream();
+    REQUIRE(merged != nullptr);
+    REQUIRE(decoded_text(*merged) == "AB");
+}
+
+TEST_CASE("page contents squash collapses a single stream to a reference", "[content_stream][page]")
+{
+    auto data = make_page_pdf("[4 0 R]", {"A"});
+    document doc{std::make_unique<ripper::io::core::memory_reader>(data), nullptr};
+
+    auto candidate = doc.catalog().pages().page(0);
+    REQUIRE(candidate.has_value());
+
+    auto contents = candidate->content();
+    REQUIRE(contents.is_array());
+
+    contents.squash();
+
+    REQUIRE_FALSE(contents.is_array());
+    REQUIRE(contents.size() == 1);
+    REQUIRE(decoded_text(*contents.at(0).stream()) == "A");
+}
+
 } // namespace ripper::pdf::core

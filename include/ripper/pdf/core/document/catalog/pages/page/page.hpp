@@ -54,11 +54,12 @@ public:
     /// /Contents is either a single content stream or an array of content
     /// streams (ISO 32000-1 §7.7.3.3). Both forms are exposed through the same
     /// view, with is_array() reporting which form the file used. A page without
-    /// a /Contents entry gets an empty stream allocated on first access; a null
-    /// /Contents is reported as empty.
+    /// a /Contents entry gets an empty array created on first access and is
+    /// reported as empty; no content stream is allocated until content is
+    /// actually written (for example through `canvas()`).
     ///
-    /// @throws logic_exception if the page is not a dictionary or the new
-    ///         content stream cannot be committed.
+    /// @throws logic_exception if the page is not a dictionary or the new slot
+    ///         cannot be created.
     [[nodiscard]] page_contents content();
 
     /// Rebinds the page and returns a canvas over a new content stream.

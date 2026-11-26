@@ -2,42 +2,22 @@
 
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/object/array_object.hpp"
+#include "ripper/pdf/core/document/object/helpers/decoded_stream.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace ripper::pdf::core
 {
-namespace
-{
-/// Returns the page's /Contents slot, creating a null entry when absent.
-[[nodiscard]] object& ensure_contents_slot(indirect_object& page_obj)
-{
-    auto* dict = page_obj.content().as_dictionary();
-    if (dict == nullptr)
-        throw logic_exception{"Page object is not a dictionary"};
-
-    if (auto* entry = dict->get("Contents"))
-        return *entry;
-
-    dict->set("Contents", object{});
-
-    return *dict->get("Contents");
-}
-} // namespace
-
-page_contents::page_contents(object& contents, indirect_object& page_obj) noexcept
-    : direct_object_view(contents, page_obj)
-{
-}
-
-page_contents::page_contents(indirect_object& page_obj)
-    : page_contents{ensure_contents_slot(page_obj), page_obj}
+page_contents::page_contents(object& contents, indirect_object& owner) noexcept
+    : direct_object_view(contents, owner)
 {
 }
 
@@ -101,33 +81,7 @@ std::vector<content_stream> page_contents::streams() const
 void page_contents::append(content_stream stream)
 {
     const auto ref = stream.obj().identity().reference();
-
-    auto& entry = value();
-
-    // Null /Contents: a lone reference is the canonical single form.
-    if (entry.is_null())
-    {
-        entry = object{ref};
-        return;
-    }
-
-    if (auto* arr = entry.as_array())
-    {
-        arr->push_back(object{ref});
-        return;
-    }
-
-    if (const auto* existing = entry.as_indirect_reference())
-    {
-        array_object promoted;
-        promoted.push_back(object{*existing});
-        promoted.push_back(object{ref});
-        entry = object{std::move(promoted)};
-        return;
-    }
-
-    throw logic_exception{
-        "Page /Contents must be a stream reference or an array of stream references"};
+    ensure_array().push_back(object{ref});
 }
 
 void page_contents::insert(std::size_t index, content_stream stream)
@@ -136,81 +90,85 @@ void page_contents::insert(std::size_t index, content_stream stream)
     if (index > count)
         throw std::out_of_range{"Page /Contents index out of range"};
 
-    if (index == count)
-    {
-        append(std::move(stream));
-        return;
-    }
-
     const auto ref = stream.obj().identity().reference();
 
-    auto& arr = ensure_array();
-    auto& items = arr.items();
+    auto& items = ensure_array().items();
     items.insert(items.begin() + static_cast<std::ptrdiff_t>(index), object{ref});
 }
 
 void page_contents::replace(std::size_t index, content_stream stream)
 {
-    const auto ref = stream.obj().identity().reference();
-
-    auto& entry = value();
-
-    if (entry.is_null() || index >= size())
+    if (index >= size())
         throw std::out_of_range{"Page /Contents index out of range"};
 
-    if (auto* arr = entry.as_array())
-    {
-        arr->items()[index] = object{ref};
-        return;
-    }
-
-    if (entry.as_indirect_reference() != nullptr)
-    {
-        entry = object{ref};
-        return;
-    }
-
-    throw logic_exception{
-        "Page /Contents must be a stream reference or an array of stream references"};
+    const auto ref = stream.obj().identity().reference();
+    ensure_array().items()[index] = object{ref};
 }
 
 void page_contents::remove(std::size_t index)
 {
-    auto& entry = value();
-
-    if (entry.is_null())
-        throw std::out_of_range{"Page /Contents is empty"};
-
-    if (entry.as_indirect_reference() != nullptr)
-    {
-        if (index != 0)
-            throw std::out_of_range{"Page /Contents index out of range"};
-
-        entry = object{};
-        return;
-    }
-
-    auto* arr = entry.as_array();
-    if (arr == nullptr)
-        throw logic_exception{
-            "Page /Contents must be a stream reference or an array of stream references"};
-
-    auto& items = arr->items();
-    if (index >= items.size())
+    if (index >= size())
         throw std::out_of_range{"Page /Contents index out of range"};
 
+    auto& items = ensure_array().items();
     items.erase(items.begin() + static_cast<std::ptrdiff_t>(index));
-
-    // Collapse back to the most compact legal form.
-    if (items.size() == 1)
-        entry = object{items.front()};
-    else if (items.empty())
-        entry = object{};
 }
 
 void page_contents::clear()
 {
-    value() = object{};
+    value() = object{array_object{}};
+}
+
+void page_contents::squash()
+{
+    const auto sources = streams();
+
+    if (sources.empty())
+        return;
+
+    if (sources.size() == 1)
+    {
+        value() = object{sources.front().obj().identity().reference()};
+        return;
+    }
+
+    std::vector<decoded_stream> decoded;
+    decoded.reserve(sources.size());
+
+    std::size_t total = 0;
+    for (const auto& source : sources)
+    {
+        const auto* stream_obj = source.stream();
+        if (stream_obj == nullptr)
+            throw logic_exception{"Page /Contents reference does not point to a stream"};
+
+        auto bytes = stream_obj->decode();
+        const auto view = bytes.bytes();
+        if (view.size() > std::numeric_limits<std::size_t>::max() - total)
+            throw logic_exception{"Squashed content stream is too large"};
+
+        total += view.size();
+
+        decoded.push_back(std::move(bytes));
+    }
+
+    stream_object merged;
+
+    auto& output = merged.stream().data();
+    output.reserve(total);
+
+    for (auto& bytes : decoded)
+    {
+        const auto view = bytes.bytes();
+
+        output.insert(output.end(), view.begin(), view.end());
+    }
+
+    merged.sync_length();
+
+    auto& merged_obj = object_manager::create_stream(document(), std::move(merged));
+
+    value() = object{merged_obj.identity().reference()};
 }
 
 array_object& page_contents::ensure_array()
