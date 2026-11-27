@@ -2,6 +2,7 @@
 
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
+#include "ripper/pdf/core/document/font/font.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -96,6 +97,16 @@ std::string font_resources::add(indirect_object& font)
 void font_resources::set(std::string_view name, indirect_object& font)
 {
     entries().set(std::string{name}, object{font.identity().reference()});
+}
+
+std::string font_resources::add(font& value)
+{
+    return add(value.obj());
+}
+
+void font_resources::set(std::string_view name, font& value)
+{
+    set(name, value.obj());
 }
 
 void font_resources::remove(std::string_view name)

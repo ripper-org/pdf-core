@@ -8,6 +8,7 @@
 namespace ripper::pdf::core
 {
 class dictionary_object;
+class font;
 class indirect_object;
 class object;
 class page_resources;
@@ -60,8 +61,15 @@ public:
     /// Registers `font` under a generated unique name and returns that name.
     [[nodiscard]] std::string add(indirect_object& font);
 
+    /// Registers a typed `font` under a generated unique name and returns that
+    /// name.
+    [[nodiscard]] std::string add(font& value);
+
     /// Registers or overwrites `name` with `font`.
     void set(std::string_view name, indirect_object& font);
+
+    /// Registers or overwrites `name` with a typed `font`.
+    void set(std::string_view name, font& value);
 
     /// Removes `name`; absent names are a no-op.
     void remove(std::string_view name);
