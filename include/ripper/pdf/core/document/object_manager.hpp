@@ -3,6 +3,7 @@
 #include "ripper/pdf/core/document/catalog/catalog.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
 #include "ripper/pdf/core/document/header.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/revision_manager.hpp"
@@ -107,6 +108,43 @@ public:
     /// @throws logic_exception if the page object is not a dictionary or has no
     ///         /Contents entry.
     [[nodiscard]] static page_contents parse_page_contents(page& page);
+
+    /// Creates a page's /Resources slot and returns a view over it.
+    ///
+    /// Does not register any resources: an absent or null /Resources entry
+    /// becomes an empty dictionary, which the returned view reports as empty.
+    ///
+    /// @return A non-owning view over the page's /Resources slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if the page object is not a dictionary.
+    [[nodiscard]] static page_resources create_page_resources(page& page);
+
+    /// Wrap an existing page's /Resources entry into a lazily validated view.
+    ///
+    /// Does not create or modify anything: the returned view validates and
+    /// resolves /Resources on use (`empty()`, `has()`, `find()`), so merely
+    /// accessing a page's resources never loads the referenced objects.
+    ///
+    /// @return A non-owning view over the page's /Resources slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if the page object is not a dictionary or has no
+    ///         /Resources entry.
+    [[nodiscard]] static page_resources parse_page_resources(page& page);
+
+    /// Ensures a page's /Resources and /Font entries are direct dictionaries and
+    /// returns a view over /Font.
+    ///
+    /// Creates missing or null entries and copies indirect values into place.
+    /// Only slot normalization lives here; registering individual fonts is
+    /// `font_resources::add()`/`set()`.
+    ///
+    /// @return A non-owning view over the page's /Font slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if /Resources or /Font is not a dictionary.
+    [[nodiscard]] static font_resources create_font_resources(page_resources& resources);
 
     /// Allocate a new indirect stream object and commit it to the active revision.
     ///

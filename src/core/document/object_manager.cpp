@@ -3,6 +3,7 @@
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/catalog/catalog.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
 #include "ripper/pdf/core/document/catalog/pages/pages.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_entry.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
@@ -21,7 +22,6 @@
 
 namespace ripper::pdf::core
 {
-
 indirect_object& object_manager::create_object(document& doc, object value)
 {
     auto& xref = doc.cross_reference_table();
@@ -135,6 +135,78 @@ page_contents object_manager::parse_page_contents(page& page)
         throw logic_exception{"Page has no /Contents entry"};
 
     return page_contents{*entry, page.obj()};
+}
+
+page_resources object_manager::create_page_resources(page& page)
+{
+    auto* dict = page.obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object is not a dictionary"};
+
+    auto* entry = dict->get("Resources");
+    if (entry == nullptr || entry->is_null())
+        dict->set("Resources", object{dictionary_object{}});
+
+    return page_resources{*dict->get("Resources"), page.obj()};
+}
+
+page_resources object_manager::parse_page_resources(page& page)
+{
+    auto* dict = page.obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object is not a dictionary"};
+
+    auto* entry = dict->get("Resources");
+    if (entry == nullptr)
+        throw logic_exception{"Page has no /Resources entry"};
+
+    return page_resources{*entry, page.obj()};
+}
+
+font_resources object_manager::create_font_resources(page_resources& resources)
+{
+    auto& doc = resources.document();
+    auto& entry = resources.value();
+
+    if (entry.is_null())
+        entry = object{dictionary_object{}};
+
+    auto* resources_dict = entry.as_dictionary();
+    if (resources_dict == nullptr && entry.is_indirect_reference())
+    {
+        const auto* resolved = doc.resolve_object_deep(&entry);
+        if (resolved != nullptr && resolved->is_dictionary())
+        {
+            entry = object{*resolved->as_dictionary()};
+            resources_dict = entry.as_dictionary();
+        }
+    }
+
+    if (resources_dict == nullptr)
+        throw logic_exception{"Page /Resources must be a dictionary"};
+
+    auto* font_entry = resources_dict->get("Font");
+    if (font_entry == nullptr || font_entry->is_null())
+    {
+        resources_dict->set("Font", object{dictionary_object{}});
+        font_entry = resources_dict->get("Font");
+    }
+
+    auto* fonts = font_entry->as_dictionary();
+    if (fonts == nullptr && font_entry->is_indirect_reference())
+    {
+        const auto* resolved = doc.resolve_object_deep(font_entry);
+        if (resolved != nullptr && resolved->is_dictionary())
+        {
+            *font_entry = object{*resolved->as_dictionary()};
+            fonts = font_entry->as_dictionary();
+        }
+    }
+
+    if (fonts == nullptr)
+        throw logic_exception{"Page /Font must be a dictionary"};
+
+    return font_resources{*font_entry, resources.owner()};
 }
 
 indirect_object& object_manager::create_stream(document& doc, stream_object value)

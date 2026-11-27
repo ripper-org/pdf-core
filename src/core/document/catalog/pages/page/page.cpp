@@ -174,6 +174,34 @@ page_contents page::content()
     return object_manager::parse_page_contents(*this);
 }
 
+page_resources page::resources()
+{
+    auto* dict = obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object view object is not a dictionary"};
+
+    auto* entry = dict->get("Resources");
+    if (entry == nullptr || entry->is_null())
+    {
+        if (auto up = parent_pages(*this))
+        {
+            if (const auto* inherited = up->inherited("Resources");
+                inherited != nullptr && !inherited->is_null())
+            {
+                const auto* resources = inherited->as_dictionary();
+                if (resources == nullptr)
+                    throw logic_exception{"Inherited page /Resources is not a dictionary"};
+
+                // Copy the inherited dictionary into this page so edits never
+                // mutate a shared ancestor (ISO 32000-1 §7.7.3.4).
+                dict->set("Resources", object{*resources});
+            }
+        }
+    }
+
+    return object_manager::create_page_resources(*this);
+}
+
 graphics::brush page::brush(graphics::brush_mode mode)
 {
     rebind_to_active_revision();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
 #include "ripper/pdf/core/document/catalog/pages/page/rotation.hpp"
 #include "ripper/pdf/core/document/geometry/rect.hpp"
 #include "ripper/pdf/core/document/graphics/brush/brush.hpp"
@@ -61,6 +62,24 @@ public:
     /// @throws logic_exception if the page is not a dictionary or the new slot
     ///         cannot be created.
     [[nodiscard]] page_contents content();
+
+    /// Returns the page's /Resources entry.
+    ///
+    /// /Resources is a dictionary whose entries are resource categories
+    /// (/Font, /XObject, /ExtGState, …), each mapping names to resource objects
+    /// (ISO 32000-1 §7.8.3). The returned view exposes the categories that are
+    /// modelled so far; currently that is `/Font`, the only category required to
+    /// draw text.
+    ///
+    /// /Resources is inheritable (§7.7.3.4). When this page has no own entry but
+    /// an ancestor defines one, the ancestor's dictionary is copied into this
+    /// page on first access, so edits never mutate shared resources and the
+    /// effective resources stay visible. A page without /Resources anywhere in
+    /// the chain gets an empty dictionary.
+    ///
+    /// @throws logic_exception if the page is not a dictionary or the new slot
+    ///         cannot be created.
+    [[nodiscard]] page_resources resources();
 
     /// Rebinds the page and returns a brush over a new content stream.
     ///
