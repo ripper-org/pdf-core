@@ -11,6 +11,7 @@ namespace ripper::pdf::core
 class array_object;
 class indirect_reference;
 class object;
+class page;
 
 /// The /Contents entry of a page (ISO 32000-1 §7.7.3.3).
 ///
@@ -36,9 +37,20 @@ class object;
 class page_contents : public direct_object_view
 {
 public:
-    /// @param contents the page's /Contents slot.
-    /// @param owner the page's indirect_object (must hold a dictionary).
-    page_contents(object& contents, indirect_object& owner) noexcept;
+    /// Returns a view over `owner`'s /Contents slot, materializing an empty array
+    /// when the entry is absent.
+    ///
+    /// Does not allocate a content stream: an absent /Contents entry becomes an
+    /// empty array, which the returned view reports as empty.
+    ///
+    /// The owner must already be bound to the active revision, otherwise the
+    /// change is not captured by an incremental save.
+    ///
+    /// @return A non-owning view over the page's /Contents slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if the page object is not a dictionary.
+    [[nodiscard]] static page_contents ensure(page& owner);
 
     /// Returns `true` if /Contents is absent, null or an empty array.
     [[nodiscard]] bool empty() const;
@@ -116,6 +128,10 @@ public:
     void squash();
 
 private:
+    /// @param contents the page's /Contents slot.
+    /// @param owner the page's indirect_object (must hold a dictionary).
+    page_contents(object& contents, indirect_object& owner) noexcept;
+
     /// Returns /Contents as an array, promoting a single reference or a null
     /// value in place.
     [[nodiscard]] class array_object& ensure_array();

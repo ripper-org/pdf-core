@@ -8,6 +8,7 @@
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 namespace ripper::pdf::core
@@ -18,6 +19,21 @@ class page : public indirect_object_view
 {
 public:
     explicit page(indirect_object& obj) noexcept;
+
+    /// Creates a new /Page leaf in `parent`'s /Kids at `child_index`.
+    ///
+    /// Allocates a page dictionary with `/Type /Page`, `/Parent` pointing at
+    /// `parent`, and a normalized `/MediaBox`, commits it to the active revision,
+    /// inserts its reference into the parent's /Kids, and increments /Count on
+    /// the parent and every ancestor.
+    ///
+    /// `child_index` is the slot in `parent`'s /Kids array, not a document-wide
+    /// page index. Prefer `pages::append_page`, `prepend_page` and `insert_page`,
+    /// which resolve the right node and slot for you.
+    ///
+    /// @throws logic_exception if `child_index` is out of /Kids range or a commit fails.
+    [[nodiscard]] static page create(pages& parent, std::size_t child_index,
+                                     const geometry::rect& box);
 
     /// Returns the parent /Pages node of this page.
     ///

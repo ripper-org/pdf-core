@@ -10,7 +10,9 @@
 #include "ripper/pdf/core/exceptions/exception.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <unordered_set>
 
 namespace ripper::pdf::core
 {
@@ -99,6 +101,57 @@ void page_tree_node::remove_child(const indirect_reference& ref)
 
     if (it != kids->end())
         kids->erase(it);
+}
+
+void page_tree_node::insert_child(std::size_t child_index, const indirect_reference& ref)
+{
+    auto* d = obj().content().as_dictionary();
+    if (d == nullptr)
+        throw logic_exception{"Page tree node content is not a dictionary"};
+
+    if (d->get_array("Kids") == nullptr)
+        d->set("Kids", object{array_object{}});
+
+    auto* kids = d->get_array("Kids");
+    auto& items = kids->items();
+    items.insert(items.begin() + static_cast<std::ptrdiff_t>(child_index), object{ref});
+}
+
+void page_tree_node::bump_count(std::int64_t delta)
+{
+    std::unordered_set<indirect_reference> visited;
+
+    page_tree_node node = *this;
+    while (true)
+    {
+        const auto node_ref = node.obj().identity().reference();
+        if (!visited.insert(node_ref).second)
+            throw logic_exception{"Cyclic /Parent chain detected while climbing the page tree"};
+
+        node.rebind_to_active_revision();
+
+        auto* d = node.obj().content().as_dictionary();
+        if (d == nullptr)
+            break;
+
+        auto* count = d->get_number("Count");
+        if (count == nullptr)
+            break;
+
+        if (delta < 0 && count->as_integer() <= 0)
+            break;
+
+        d->set("Count", object{count->as_integer() + delta});
+
+        if (node.is_root())
+            break;
+
+        auto up = node.parent();
+        if (!up)
+            break;
+
+        node = *up;
+    }
 }
 
 std::optional<class pages> page_tree_node::as_pages()

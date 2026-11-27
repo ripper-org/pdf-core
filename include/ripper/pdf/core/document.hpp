@@ -5,7 +5,6 @@
 #include "ripper/pdf/core/document/catalog/catalog.hpp"
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_manager.hpp"
 #include "ripper/pdf/core/document/header.hpp"
-#include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/document/revision.hpp"
 #include "ripper/pdf/core/document/revision_manager.hpp"
 #include "ripper/pdf/core/document/trailer/trailer_manager.hpp"

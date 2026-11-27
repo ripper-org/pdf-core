@@ -5,6 +5,7 @@
 #include "ripper/pdf/core/document/object/helpers/indirect_object_view.hpp"
 #include "ripper/pdf/core/document/object/indirect_reference.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -63,6 +64,20 @@ public:
     ///
     /// @throws `logic_exception` if this node has no /Kids array.
     void remove_child(const indirect_reference& ref);
+
+    /// Inserts `ref` at `child_index` in this node's /Kids array, creating /Kids
+    /// if it is absent.
+    ///
+    /// Does NOT update /Count; call `bump_count(1)` on this node afterwards.
+    ///
+    /// @throws `logic_exception` if this node is not a dictionary.
+    void insert_child(std::size_t child_index, const indirect_reference& ref);
+
+    /// Adds `delta` to /Count on this node and every ancestor, stopping at the
+    /// root or at the first node without /Count.
+    ///
+    /// @throws `logic_exception` if the /Parent chain is cyclic.
+    void bump_count(std::int64_t delta);
 
     /// Returns this node as a `pages` view, or `std::nullopt` if the node
     /// is not a /Type /Pages node.

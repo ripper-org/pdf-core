@@ -31,6 +31,35 @@ namespace
 
 page::page(indirect_object& obj) noexcept : indirect_object_view(obj) {}
 
+page page::create(pages& parent, std::size_t child_index, const geometry::rect& box)
+{
+    auto& doc = parent.obj().identity().owner();
+
+    const auto normalized =
+        geometry::rect::from_corners({box.x, box.y}, {box.x + box.width, box.y + box.height});
+
+    // /MediaBox uses the [llx lly urx ury] corner form (ISO 32000-1 §7.9.5).
+    array_object mediabox;
+    mediabox.push_back(object{normalized.x});
+    mediabox.push_back(object{normalized.y});
+    mediabox.push_back(object{normalized.x + normalized.width});
+    mediabox.push_back(object{normalized.y + normalized.height});
+
+    dictionary_object page_dict;
+    page_dict.set("Type", object{name_object{"Page"}});
+    page_dict.set("Parent", object{parent.obj().identity().reference()});
+    page_dict.set("MediaBox", object{std::move(mediabox)});
+
+    auto& page_obj = object_manager::allocate_object(doc, object{std::move(page_dict)});
+
+    // Register the new leaf in the parent's /Kids and keep /Count consistent.
+    page_tree_node node{parent.obj()};
+    node.insert_child(child_index, page_obj.identity().reference());
+    node.bump_count(1);
+
+    return page{page_obj};
+}
+
 geometry::rect page::media_box()
 {
     const auto letter = ripper::pdf::core::media_box(page_size::letter);
@@ -164,14 +193,7 @@ void page::remove()
 
 page_contents page::content()
 {
-    auto* dict = obj().content().as_dictionary();
-    if (dict == nullptr)
-        throw logic_exception{"Page content is not a dictionary"};
-
-    if (dict->get("Contents") == nullptr)
-        return object_manager::create_page_contents(*this);
-
-    return object_manager::parse_page_contents(*this);
+    return page_contents::ensure(*this);
 }
 
 page_resources page::resources()
@@ -199,7 +221,7 @@ page_resources page::resources()
         }
     }
 
-    return object_manager::create_page_resources(*this);
+    return page_resources::ensure(*this);
 }
 
 graphics::brush page::brush(graphics::brush_mode mode)
@@ -209,7 +231,7 @@ graphics::brush page::brush(graphics::brush_mode mode)
     auto& doc = obj().identity().owner();
 
     // Allocate before touching /Contents so a failed commit leaves the page intact.
-    auto stream = object_manager::create_content_stream(doc);
+    auto stream = content_stream::create(doc);
 
     auto contents = content();
 

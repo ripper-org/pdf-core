@@ -1,9 +1,5 @@
 #pragma once
 
-#include "ripper/pdf/core/document/catalog/catalog.hpp"
-#include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
-#include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
-#include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
 #include "ripper/pdf/core/document/header.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/revision_manager.hpp"
@@ -13,33 +9,30 @@
 namespace ripper::pdf::core
 {
 class document;
-class pages;
 
-/// Static utility for parsing and creating PDF document objects.
+/// Document-level object allocation and bootstrap utilities.
 ///
-/// This type encapsulates all logic for parsing document objects from file data
-/// and creating new objects to be written to file. It centralizes the coordination
-/// of low-level operations (parser invocation, xref allocation, object commitment)
-/// with domain-level concerns (object type validation, invariant enforcement).
+/// This type owns the primitives that cannot belong to any single typed view:
+/// allocating a new indirect object (`allocate_object` / `allocate_stream`) and
+/// bootstrapping the document structures that are not object views (header and
+/// revision history).
 ///
-/// All methods are static and take a `document&` parameter to access the parser,
-/// xref, trailer, and serialization infrastructure.
+/// Typed views (`catalog`, `pages`, `page_contents`, …) construct themselves
+/// through their own `parse` / `create` / `ensure` methods and call the
+/// allocator here when a new indirect object is required.
 ///
 /// ## Responsibilities
 ///
-/// - **Parse operations**: Read an object from file via the parser and resolve it
-///   into the xref, with type validation as needed.
+/// - **Allocation**: reserve a reference, commit the object to the active
+///   revision, and return a stable reference to it.
 ///
-/// - **Create operations**: Allocate a new indirect object, populate with defaults,
-///   commit to xref, and wire cross-references as needed (e.g., set trailer /Root).
-///
-/// - **Structural initialization**: Build initial document structures (header, xref,
-///   trailer) for new documents or parsed documents.
+/// - **Structural bootstrap**: build the initial header and revision history for
+///   new documents, or parse them from file.
 ///
 /// ## Usage
 ///
 /// ```cpp
-/// auto cat = object_manager::create_catalog(doc);
+/// auto& obj = object_manager::allocate_object(doc, object{...});
 /// ```
 class object_manager
 {
@@ -51,114 +44,12 @@ public:
     /// The returned reference remains valid for the lifetime of the document.
     ///
     /// @throws logic_exception if the commit fails.
-    [[nodiscard]] static indirect_object& create_object(document& doc, object value);
-
-    /// Parse the catalog from the file and resolve it into the xref.
-    ///
-    /// Looks up the /Root reference in the trailer, resolves the object via the parser,
-    /// validates its /Type is /Catalog, and returns a typed view.
-    ///
-    /// @throws parse_exception if the trailer /Root is missing or the resolved object
-    ///         is not a valid catalog dictionary.
-    [[nodiscard]] static catalog parse_catalog(document& doc);
-
-    /// Allocate a new catalog into the xref and set the trailer /Root.
-    ///
-    /// Reserves an object reference, constructs a catalog dictionary_object with /Type /Catalog,
-    /// commits it to the xref, and wires the trailer /Root to point to it.
-    ///
-    /// @throws logic_exception if the xref or trailer operations fail.
-    [[nodiscard]] static catalog create_catalog(document& doc);
-
-    /// Allocate a new /Page object parented at `parent`.
-    ///
-    /// Reserves an object reference, builds a page dictionary with
-    /// `/Type /Page`, `/Parent`, and a normalized `/MediaBox`, commits it to the
-    /// xref, and returns a typed view.
-    ///
-    /// The page is not added to `parent`'s /Kids; the caller is responsible for
-    /// inserting the reference and updating /Count.
-    ///
-    /// @throws logic_exception if the commit fails.
-    [[nodiscard]] static page create_page(document& doc, pages& parent, const geometry::rect& box);
-
-    /// Creates a page's /Contents slot and returns a view over it.
-    ///
-    /// Does not allocate a content stream: an absent /Contents entry becomes an
-    /// empty array, which the returned view reports as empty.
-    ///
-    /// @return A non-owning view over the page's /Contents slot; the page must
-    ///         outlive it.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary.
-    [[nodiscard]] static page_contents create_page_contents(page& page);
-
-    /// Wrap an existing page's /Contents entry into a lazily validated view.
-    ///
-    /// Does not create or modify anything: the returned view validates and
-    /// resolves /Contents on use (`size()`, `at()`, `streams()`), so merely
-    /// accessing a page's contents never loads the referenced streams.
-    ///
-    /// Accepts null, a single indirect stream reference, or an array of
-    /// indirect stream references (ISO 32000-1 §7.7.3.3).
-    ///
-    /// @return A non-owning view over the page's /Contents slot; the page must
-    ///         outlive it.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary or has no
-    ///         /Contents entry.
-    [[nodiscard]] static page_contents parse_page_contents(page& page);
-
-    /// Creates a page's /Resources slot and returns a view over it.
-    ///
-    /// Does not register any resources: an absent or null /Resources entry
-    /// becomes an empty dictionary, which the returned view reports as empty.
-    ///
-    /// @return A non-owning view over the page's /Resources slot; the page must
-    ///         outlive it.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary.
-    [[nodiscard]] static page_resources create_page_resources(page& page);
-
-    /// Wrap an existing page's /Resources entry into a lazily validated view.
-    ///
-    /// Does not create or modify anything: the returned view validates and
-    /// resolves /Resources on use (`empty()`, `has()`, `find()`), so merely
-    /// accessing a page's resources never loads the referenced objects.
-    ///
-    /// @return A non-owning view over the page's /Resources slot; the page must
-    ///         outlive it.
-    ///
-    /// @throws logic_exception if the page object is not a dictionary or has no
-    ///         /Resources entry.
-    [[nodiscard]] static page_resources parse_page_resources(page& page);
-
-    /// Ensures a page's /Resources and /Font entries are direct dictionaries and
-    /// returns a view over /Font.
-    ///
-    /// Creates missing or null entries and copies indirect values into place.
-    /// Only slot normalization lives here; registering individual fonts is
-    /// `font_resources::add()`/`set()`.
-    ///
-    /// @return A non-owning view over the page's /Font slot; the page must
-    ///         outlive it.
-    ///
-    /// @throws logic_exception if /Resources or /Font is not a dictionary.
-    [[nodiscard]] static font_resources create_font_resources(page_resources& resources);
+    [[nodiscard]] static indirect_object& allocate_object(document& doc, object value);
 
     /// Allocate a new indirect stream object and commit it to the active revision.
     ///
     /// @throws logic_exception if the commit fails.
-    [[nodiscard]] static indirect_object& create_stream(document& doc, stream_object value);
-
-    /// Allocate a new, empty content stream in the xref.
-    ///
-    /// The stream gets `/Length 0` and is committed to the active revision but
-    /// is not referenced by any page yet; attach it with `page_contents::append`,
-    /// `insert`, or `replace`.
-    ///
-    /// @throws logic_exception if the commit fails.
-    [[nodiscard]] static content_stream create_content_stream(document& doc);
+    [[nodiscard]] static indirect_object& allocate_stream(document& doc, stream_object value);
 
     /// Parse the revision history from file.
     ///

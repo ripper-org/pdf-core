@@ -12,6 +12,7 @@
 
 namespace ripper::pdf::core
 {
+class document;
 class object;
 
 /// Typed view over a PDF pages tree indirect_object (/Type /Pages).
@@ -26,6 +27,15 @@ class pages : public indirect_object_view
 {
 public:
     explicit pages(indirect_object& obj) noexcept;
+
+    /// Allocate a new root /Pages node and commit it to the active revision.
+    ///
+    /// The node gets `/Type /Pages`, an empty `/Kids` array and `/Count 0`. It has
+    /// no `/Parent`; the caller (typically `catalog::create`) wires it into the
+    /// document.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static pages create_root(document& doc);
 
     /// Returns the total page count from the /Count entry.
     [[nodiscard]] std::uint64_t count() const;

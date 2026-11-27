@@ -3,11 +3,24 @@
 #include "ripper/pdf/core/document.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
+
+#include <utility>
 
 namespace ripper::pdf::core
 {
 content_stream::content_stream(indirect_object& obj) noexcept : indirect_object_view(obj) {}
+
+content_stream content_stream::create(document& doc)
+{
+    // An empty stream still needs /Length in its dictionary: the serializer
+    // writes the dictionary verbatim.
+    stream_object stream_obj;
+    stream_obj.sync_length();
+
+    return content_stream{object_manager::allocate_stream(doc, std::move(stream_obj))};
+}
 
 stream_object* content_stream::stream() noexcept
 {

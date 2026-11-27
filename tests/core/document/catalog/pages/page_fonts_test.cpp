@@ -5,6 +5,7 @@
 #include "ripper/pdf/core/document/graphics/brush/brush.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/document/object/stream_object.hpp"
+#include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
 #include "test_fixture.hpp"
 
@@ -237,7 +238,7 @@ TEST_CASE("page fonts register a font and feed the brush", "[page_fonts][write]"
     auto fonts = target.resources().fonts();
     REQUIRE(fonts.empty());
 
-    auto& font = object_manager::create_object(fixture.doc(), object{dictionary_object{}});
+    auto& font = object_manager::allocate_object(fixture.doc(), object{dictionary_object{}});
 
     const auto name = fonts.add(font);
     REQUIRE(name == "F1");

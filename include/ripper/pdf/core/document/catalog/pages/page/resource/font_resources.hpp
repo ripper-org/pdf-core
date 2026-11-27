@@ -10,6 +10,7 @@ namespace ripper::pdf::core
 class dictionary_object;
 class indirect_object;
 class object;
+class page_resources;
 
 /// The /Font resource dictionary of a page (ISO 32000-1 §7.8.3).
 ///
@@ -30,9 +31,21 @@ class object;
 class font_resources : public direct_object_view
 {
 public:
-    /// @param fonts the page's `/Font` slot (must hold a dictionary).
-    /// @param owner the page's indirect_object.
-    font_resources(object& fonts, indirect_object& owner) noexcept;
+    /// Ensures a page's /Resources and /Font entries are direct dictionaries and
+    /// returns a view over /Font.
+    ///
+    /// Creates missing or null entries and copies indirect values into place.
+    /// Only slot normalization happens here; registering individual fonts is
+    /// `add()`/`set()`.
+    ///
+    /// The owning page must already be bound to the active revision, otherwise
+    /// the change is not captured by an incremental save.
+    ///
+    /// @return A non-owning view over the page's /Font slot; the page must
+    ///         outlive it.
+    ///
+    /// @throws logic_exception if /Resources or /Font is not a dictionary.
+    [[nodiscard]] static font_resources ensure(page_resources& resources);
 
     /// Returns `true` if no fonts are registered.
     [[nodiscard]] bool empty() const;
@@ -57,6 +70,10 @@ public:
     void clear();
 
 private:
+    /// @param fonts the page's `/Font` slot (must hold a dictionary).
+    /// @param owner the page's indirect_object.
+    font_resources(object& fonts, indirect_object& owner) noexcept;
+
     /// Returns the `/Font` dictionary, validating its shape.
     [[nodiscard]] const dictionary_object& entries() const;
     [[nodiscard]] dictionary_object& entries();

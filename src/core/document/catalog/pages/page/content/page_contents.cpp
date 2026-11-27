@@ -1,6 +1,7 @@
 #include "ripper/pdf/core/document/catalog/pages/page/content/page_contents.hpp"
 
 #include "ripper/pdf/core/document.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/page.hpp"
 #include "ripper/pdf/core/document/object/array_object.hpp"
 #include "ripper/pdf/core/document/object/helpers/decoded_stream.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
@@ -19,6 +20,22 @@ namespace ripper::pdf::core
 page_contents::page_contents(object& contents, indirect_object& owner) noexcept
     : direct_object_view(contents, owner)
 {
+}
+
+page_contents page_contents::ensure(page& owner)
+{
+    auto* dict = owner.obj().content().as_dictionary();
+    if (dict == nullptr)
+        throw logic_exception{"Page object is not a dictionary"};
+
+    auto* entry = dict->get("Contents");
+    if (entry == nullptr)
+    {
+        dict->set("Contents", object{array_object{}});
+        entry = dict->get("Contents");
+    }
+
+    return page_contents{*entry, owner.obj()};
 }
 
 bool page_contents::empty() const
@@ -166,7 +183,7 @@ void page_contents::squash()
 
     merged.sync_length();
 
-    auto& merged_obj = object_manager::create_stream(document(), std::move(merged));
+    auto& merged_obj = object_manager::allocate_stream(document(), std::move(merged));
 
     value() = object{merged_obj.identity().reference()};
 }

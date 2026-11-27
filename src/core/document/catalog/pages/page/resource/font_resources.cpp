@@ -1,5 +1,7 @@
 #include "ripper/pdf/core/document/catalog/pages/page/resource/font_resources.hpp"
 
+#include "ripper/pdf/core/document.hpp"
+#include "ripper/pdf/core/document/catalog/pages/page/resource/page_resources.hpp"
 #include "ripper/pdf/core/document/object/helpers/indirect_object.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
 #include "ripper/pdf/core/exceptions/exception.hpp"
@@ -13,6 +15,52 @@ namespace ripper::pdf::core
 font_resources::font_resources(object& fonts, indirect_object& owner) noexcept
     : direct_object_view(fonts, owner)
 {
+}
+
+font_resources font_resources::ensure(page_resources& resources)
+{
+    auto& doc = resources.document();
+    auto& entry = resources.value();
+
+    if (entry.is_null())
+        entry = object{dictionary_object{}};
+
+    auto* resources_dict = entry.as_dictionary();
+    if (resources_dict == nullptr && entry.is_indirect_reference())
+    {
+        const auto* resolved = doc.resolve_object_deep(&entry);
+        if (resolved != nullptr && resolved->is_dictionary())
+        {
+            entry = object{*resolved->as_dictionary()};
+            resources_dict = entry.as_dictionary();
+        }
+    }
+
+    if (resources_dict == nullptr)
+        throw logic_exception{"Page /Resources must be a dictionary"};
+
+    auto* font_entry = resources_dict->get("Font");
+    if (font_entry == nullptr || font_entry->is_null())
+    {
+        resources_dict->set("Font", object{dictionary_object{}});
+        font_entry = resources_dict->get("Font");
+    }
+
+    auto* fonts = font_entry->as_dictionary();
+    if (fonts == nullptr && font_entry->is_indirect_reference())
+    {
+        const auto* resolved = doc.resolve_object_deep(font_entry);
+        if (resolved != nullptr && resolved->is_dictionary())
+        {
+            *font_entry = object{*resolved->as_dictionary()};
+            fonts = font_entry->as_dictionary();
+        }
+    }
+
+    if (fonts == nullptr)
+        throw logic_exception{"Page /Font must be a dictionary"};
+
+    return font_resources{*font_entry, resources.owner()};
 }
 
 bool font_resources::empty() const

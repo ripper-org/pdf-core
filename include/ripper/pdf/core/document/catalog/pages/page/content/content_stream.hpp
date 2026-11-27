@@ -5,6 +5,7 @@
 
 namespace ripper::pdf::core
 {
+class document;
 class stream_object;
 
 /// Typed view over a PDF content stream (ISO 32000-1 §7.8.2).
@@ -21,6 +22,14 @@ class content_stream : public indirect_object_view
 {
 public:
     explicit content_stream(indirect_object& obj) noexcept;
+
+    /// Allocates a new, empty content stream and commits it to the active revision.
+    ///
+    /// The stream gets `/Length 0` but is not referenced by any page yet; attach
+    /// it with `page_contents::append`, `insert`, or `replace`.
+    ///
+    /// @throws logic_exception if the commit fails.
+    [[nodiscard]] static content_stream create(document& doc);
 
     /// Returns the underlying stream, or `nullptr` if the object is not a stream.
     [[nodiscard]] stream_object* stream() noexcept;

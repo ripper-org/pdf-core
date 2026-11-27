@@ -17,62 +17,19 @@
 
 namespace ripper::pdf::core
 {
-namespace
-{
-/// Inserts `ref` at `child_index` in the node's /Kids, creating /Kids if absent.
-void insert_kid(pages& owner, std::size_t child_index, const indirect_reference& ref)
-{
-    auto* d = owner.obj().content().as_dictionary();
-    if (d == nullptr)
-        throw logic_exception{"Pages content is not a dictionary"};
-
-    if (d->get_array("Kids") == nullptr)
-        d->set("Kids", object{array_object{}});
-
-    auto* kids = d->get_array("Kids");
-    auto& items = kids->items();
-    items.insert(items.begin() + static_cast<std::ptrdiff_t>(child_index), object{ref});
-}
-
-/// Adds `delta` to /Count on `node` and every ancestor, stopping at the root.
-void bump_counts(page_tree_node node, std::int64_t delta)
-{
-    std::unordered_set<indirect_reference> visited;
-
-    while (true)
-    {
-        const auto node_ref = node.obj().identity().reference();
-        if (!visited.insert(node_ref).second)
-            throw logic_exception{"Cyclic /Parent chain detected while climbing the page tree"};
-
-        node.rebind_to_active_revision();
-
-        auto* d = node.obj().content().as_dictionary();
-        if (d == nullptr)
-            break;
-
-        auto* count = d->get_number("Count");
-        if (count == nullptr)
-            break;
-
-        if (delta < 0 && count->as_integer() <= 0)
-            break;
-
-        d->set("Count", object{count->as_integer() + delta});
-
-        if (node.is_root())
-            break;
-
-        auto up = node.parent();
-        if (!up)
-            break;
-
-        node = *up;
-    }
-}
-} // namespace
-
 pages::pages(indirect_object& obj) noexcept : indirect_object_view(obj) {}
+
+pages pages::create_root(document& doc)
+{
+    dictionary_object pages_dict;
+    pages_dict.set("Type", object{name_object{"Pages"}});
+    pages_dict.set("Kids", object{array_object{}});
+    pages_dict.set("Count", object{std::int64_t{0}});
+
+    auto& obj = object_manager::allocate_object(doc, object{std::move(pages_dict)});
+
+    return pages{obj};
+}
 
 std::uint64_t pages::count() const
 {
@@ -337,9 +294,7 @@ class page pages::insert_page(std::uint64_t index, const geometry::rect& box)
     if (subtree)
         return subtree->insert_page(remaining, box);
 
-    auto created = object_manager::create_page(doc, *this, box);
-    insert_kid(*this, child_index, created.obj().identity().reference());
-    bump_counts(page_tree_node{obj()}, 1);
+    auto created = page::create(*this, child_index, box);
 
     return created;
 }
@@ -366,7 +321,7 @@ void pages::remove(std::uint64_t page_index)
         return;
 
     maybe_parent->remove_child(page_ref);
-    bump_counts(*maybe_parent, -1);
+    maybe_parent->bump_count(-1);
 
     // Mark the xref entry as deleted so it is pruned on full rewrite and
     // threaded into the §7.5.4 free list for incremental saves.

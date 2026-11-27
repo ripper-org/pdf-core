@@ -12,6 +12,7 @@
 #include "ripper/pdf/core/document/cross_reference_table/cross_reference_subsection.hpp"
 #include "ripper/pdf/core/document/header.hpp"
 #include "ripper/pdf/core/document/object/object.hpp"
+#include "ripper/pdf/core/document/object_manager.hpp"
 #include "ripper/pdf/core/document/revision.hpp"
 #include "ripper/pdf/core/document/revision_manager.hpp"
 #include "ripper/pdf/core/document/trailer/trailer.hpp"
@@ -221,7 +222,7 @@ catalog document::catalog()
     auto root_ref = trailer().compiled().root();
 
     if (!root_ref)
-        return object_manager::create_catalog(*this);
+        return catalog::create(*this);
 
     auto* entry = cross_reference_table().find(*root_ref);
     if (entry == nullptr)
@@ -230,7 +231,7 @@ catalog document::catalog()
     if (entry->is_resolved())
         return ripper::pdf::core::catalog{*entry->indirect_object()};
 
-    return object_manager::parse_catalog(*this);
+    return catalog::parse(*this);
 }
 
 indirect_object* document::resolve_object(indirect_reference ref)
